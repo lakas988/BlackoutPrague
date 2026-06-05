@@ -178,12 +178,31 @@ class MessageService extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<bool> hasMessage(String messageId) async {
+    await loadMessages();
+    return _messages.any((message) => message.id == messageId);
+  }
+
+  Future<bool> addIncomingMessageIfNew(EmergencyMessage message) async {
+    await loadMessages();
+    if (_messages.any((storedMessage) => storedMessage.id == message.id)) {
+      return false;
+    }
+
+    await _addMessage(message);
+    return true;
+  }
+
   Future<void> confirmMessage(String messageId) async {
     await _updateMessage(messageId, (message) => message.copyWith(verifiedCount: message.verifiedCount + 1));
   }
 
   Future<void> relayMessage(String messageId) async {
-    await _updateMessage(messageId, (message) => message.copyWith(hopCount: message.hopCount + 1));
+    await relayMessageAndReturn(messageId);
+  }
+
+  Future<EmergencyMessage?> relayMessageAndReturn(String messageId) async {
+    return _updateMessageAndReturn(messageId, (message) => message.copyWith(hopCount: message.hopCount + 1));
   }
 
   Future<void> markMessageOutdated(String messageId) async {
@@ -197,15 +216,24 @@ class MessageService extends ChangeNotifier {
   }
 
   Future<void> _updateMessage(String messageId, EmergencyMessage Function(EmergencyMessage message) update) async {
+    await _updateMessageAndReturn(messageId, update);
+  }
+
+  Future<EmergencyMessage?> _updateMessageAndReturn(
+    String messageId,
+    EmergencyMessage Function(EmergencyMessage message) update,
+  ) async {
     await loadMessages();
     final index = _messages.indexWhere((message) => message.id == messageId);
     if (index == -1) {
-      return;
+      return null;
     }
 
-    _messages[index] = update(_messages[index]);
+    final updatedMessage = update(_messages[index]);
+    _messages[index] = updatedMessage;
     await _saveMessages();
     notifyListeners();
+    return updatedMessage;
   }
 
   Future<void> _saveMessages() async {

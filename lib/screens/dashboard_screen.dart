@@ -9,6 +9,7 @@ import '../services/demo_mode_service.dart';
 import '../services/location_service.dart';
 import '../services/message_service.dart';
 import '../services/power_mode_service.dart';
+import '../services/real_ble_mesh_service.dart';
 import '../services/selected_area_service.dart';
 
 class DashboardScreen extends StatefulWidget {
@@ -30,6 +31,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   final _battery = Battery();
   final _connectivity = Connectivity();
   final _messageService = MessageService.instance;
+  final _realBleMeshService = RealBleMeshService.instance;
   final _demoModeService = DemoModeService.instance;
   final _locationService = LocationService();
   final _selectedAreaService = SelectedAreaService();
@@ -243,7 +245,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       return;
     }
 
-    await _messageService.createOutgoingMessage(
+    final message = await _messageService.createOutgoingMessage(
       type: action.messageType!,
       text: action.messageText ?? action.label,
       priority: action.priority!,
@@ -254,9 +256,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       return;
     }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Zpráva byla připravena pro mesh síť.')),
-    );
+    await _sendMessageOverBleIfEnabled(message);
   }
 
   Future<void> _confirmAndCreateSos() async {
@@ -278,7 +278,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       return;
     }
 
-    await _messageService.createOutgoingMessage(
+    final message = await _messageService.createOutgoingMessage(
       type: EmergencyMessageType.sos,
       text: 'SOS: potřebuji okamžitou pomoc.',
       priority: EmergencyMessagePriority.critical,
@@ -289,9 +289,25 @@ class _DashboardScreenState extends State<DashboardScreen> {
       return;
     }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('SOS zpráva byla vytvořena.')),
-    );
+    await _sendMessageOverBleIfEnabled(message);
+  }
+
+  Future<void> _sendMessageOverBleIfEnabled(EmergencyMessage message) async {
+    String snackBarText;
+    if (_realBleMeshService.isEnabled) {
+      final wasBroadcast = await _realBleMeshService.broadcastMessage(message);
+      snackBarText = wasBroadcast
+          ? 'Zpráva byla odvysílána přes BLE mesh.'
+          : (_realBleMeshService.lastError ?? 'Toto zařízení nepodporuje BLE vysílání.');
+    } else {
+      snackBarText = 'Zapněte BLE mesh pro odeslání.';
+    }
+
+    if (!mounted) {
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(snackBarText)));
   }
 }
 
