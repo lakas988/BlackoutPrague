@@ -1,4 +1,4 @@
-import 'package:battery_plus/battery_plus.dart';
+﻿import 'package:battery_plus/battery_plus.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 
@@ -11,6 +11,7 @@ import '../services/message_service.dart';
 import '../services/power_mode_service.dart';
 import '../services/real_ble_mesh_service.dart';
 import '../services/selected_area_service.dart';
+import '../theme/app_theme.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({
@@ -58,7 +59,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
     _demoModeService.removeListener(_syncDemoMode);
     super.dispose();
   }
-@override
+
+  @override
   Widget build(BuildContext context) {
     if (_powerMode == AppPowerMode.ultra) {
       return _UltraDashboard(
@@ -78,61 +80,44 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
     return SafeArea(
       child: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+        padding: const EdgeInsets.fromLTRB(18, 10, 18, 22),
         children: [
           const Text(
             'Blackout Prague',
-            style: TextStyle(fontSize: 32, fontWeight: FontWeight.w900, color: Color(0xFFFFFFFF)),
+            style: TextStyle(fontSize: 32, fontWeight: FontWeight.w900, color: AppColors.textPrimary),
           ),
-          const SizedBox(height: 8),
-          Text(
-            'Offline krizová příprava pro Prahu',
-            style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: const Color(0xFFD6D9DE)),
-          ),
-          const SizedBox(height: 12),
-          if (_isDemoModeEnabled) ...[
-            const _DemoBanner(),
-            const SizedBox(height: 12),
-          ],
-          const SizedBox(height: 20),
-          _PowerModeSelector(selectedMode: _powerMode, isEnabled: !_isLoadingMode, onChanged: _setPowerMode),
-          const SizedBox(height: 16),
-          _ModeMessage(mode: _powerMode),
-          const SizedBox(height: 16),
-          _StatusCard(icon: Icons.battery_5_bar_outlined, title: _batteryText),
-          const SizedBox(height: 12),
-          _StatusCard(icon: Icons.power_settings_new_outlined, title: 'Režim baterie: ${_powerMode.czechLabel}'),
-          const SizedBox(height: 12),
-          _StatusCard(icon: Icons.signal_cellular_alt_outlined, title: connectionText),
-          if (_isDemoModeEnabled) ...[
-            const SizedBox(height: 12),
-            const _StatusCard(icon: Icons.power_off_outlined, title: 'Stav: výpadek elektřiny simulován'),
-            const SizedBox(height: 12),
-            const _StatusCard(icon: Icons.tips_and_updates_outlined, title: 'Doporučení: přepnout do úsporného režimu'),
-          ],
-          const SizedBox(height: 12),
-          _StatusCard(icon: Icons.location_on_outlined, title: _locationStatus),
           const SizedBox(height: 6),
           Text(
-            'Poloha se používá jen jednorázově kvůli úspoře baterie.',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: const Color(0xFFD6D9DE)),
+            'Offline krizová příprava pro Prahu',
+            style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: AppColors.textSecondary),
           ),
-          const SizedBox(height: 10),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: OutlinedButton.icon(
-              onPressed: widget.onOpenFindHelp,
-              icon: const Icon(Icons.my_location_outlined),
-              label: const Text('Aktualizovat polohu'),
-            ),
-          ),
-          if (!isBatterySaver) ...[
+          if (_isDemoModeEnabled) ...[
             const SizedBox(height: 12),
-            const _StatusCard(icon: Icons.offline_bolt_outlined, title: 'Offline režim připraven'),
+            const _DemoBanner(),
           ],
-          const SizedBox(height: 28),
+          const SizedBox(height: 18),
+          _PowerModeSelector(selectedMode: _powerMode, isEnabled: !_isLoadingMode, onChanged: _setPowerMode),
+          const SizedBox(height: 12),
+          _StatusCard(icon: Icons.battery_5_bar_outlined, title: _batteryText, color: AppColors.safeGreen),
+          const SizedBox(height: 10),
+          _StatusCard(icon: Icons.power_settings_new_outlined, title: 'Režim baterie: ${_powerMode.czechLabel}', color: AppColors.primary),
+          const SizedBox(height: 10),
+          _StatusCard(icon: Icons.signal_cellular_alt_outlined, title: connectionText, color: _isDemoModeEnabled ? AppColors.warningOrange : AppColors.primaryLight),
+          if (_isDemoModeEnabled) ...[
+            const SizedBox(height: 10),
+            const _StatusCard(icon: Icons.power_off_outlined, title: 'Stav: výpadek elektřiny simulován', color: AppColors.emergencyRed),
+            const SizedBox(height: 10),
+            const _StatusCard(icon: Icons.tips_and_updates_outlined, title: 'Doporučení: přepnout do úsporného režimu', color: AppColors.warningOrange),
+          ],
+          const SizedBox(height: 10),
+          _StatusCard(icon: Icons.location_on_outlined, title: _locationStatus, color: AppColors.primary),
+          if (!isBatterySaver) ...[
+            const SizedBox(height: 10),
+            const _StatusCard(icon: Icons.offline_bolt_outlined, title: 'Offline režim připraven', color: AppColors.safeGreen),
+          ],
+          const SizedBox(height: 24),
           _SosButton(onPressed: _confirmAndCreateSos),
-          const SizedBox(height: 16),
+          const SizedBox(height: 18),
           _QuickActions(
             onCreateMessage: _createMessage,
             onOpenFindHelp: widget.onOpenFindHelp,
@@ -142,7 +127,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
       ),
     );
   }
-
 
   Future<void> _loadLocationStatus() async {
     final lastKnownLocation = await _locationService.getLastKnownLocation();
@@ -161,6 +145,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
     setState(() => _locationStatus = status);
   }
+
   Future<void> _loadDemoMode() async {
     await _demoModeService.load();
     if (!mounted) {
@@ -181,6 +166,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       _messageService.addDemoMessagesIfNeeded();
     }
   }
+
   Future<void> _loadDashboardState() async {
     final mode = await _powerModeService.loadMode();
     final batteryText = await _loadBatteryText();
@@ -236,8 +222,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Future<void> _setPowerMode(AppPowerMode mode) async {
+    final changed = mode != _powerMode;
     setState(() => _powerMode = mode);
     await _powerModeService.saveMode(mode);
+
+    if (!mounted || !changed) {
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(mode.description)));
   }
 
   Future<void> _createMessage(_QuickAction action) async {
@@ -313,77 +306,74 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
 class _DemoBanner extends StatelessWidget {
   const _DemoBanner();
-@override
+
+  @override
   Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: const Color(0xFF7F1D1D),
+        color: AppColors.warningOrange.withValues(alpha: 0.16),
         borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppColors.warningOrange),
       ),
       child: const Padding(
         padding: EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         child: Row(
           children: [
-            Icon(Icons.science_outlined, color: Colors.white),
+            Icon(Icons.science_outlined, color: AppColors.warningOrange),
             SizedBox(width: 10),
-            Text('Demo režim', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900)),
+            Text('Demo režim', style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w900)),
           ],
         ),
       ),
     );
   }
 }
+
 class _PowerModeSelector extends StatelessWidget {
   const _PowerModeSelector({required this.selectedMode, required this.isEnabled, required this.onChanged});
 
   final AppPowerMode selectedMode;
   final bool isEnabled;
   final ValueChanged<AppPowerMode> onChanged;
-@override
+
+  @override
   Widget build(BuildContext context) {
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        padding: const EdgeInsets.all(10),
+        child: Row(
           children: [
-            Text('Režim baterie', style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                Expanded(
-                  child: _PowerModeTile(
-                    mode: AppPowerMode.normal,
-                    selectedMode: selectedMode,
-                    isEnabled: isEnabled,
-                    icon: Icons.power_settings_new_outlined,
-                    label: 'Normální',
-                    onChanged: onChanged,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: _PowerModeTile(
-                    mode: AppPowerMode.batterySaver,
-                    selectedMode: selectedMode,
-                    isEnabled: isEnabled,
-                    icon: Icons.battery_saver_outlined,
-                    label: 'Úsporný',
-                    onChanged: onChanged,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: _PowerModeTile(
-                    mode: AppPowerMode.ultra,
-                    selectedMode: selectedMode,
-                    isEnabled: isEnabled,
-                    icon: Icons.offline_bolt_outlined,
-                    label: 'Ultra',
-                    onChanged: onChanged,
-                  ),
-                ),
-              ],
+            Expanded(
+              child: _PowerModeTile(
+                mode: AppPowerMode.normal,
+                selectedMode: selectedMode,
+                isEnabled: isEnabled,
+                icon: Icons.battery_full,
+                label: 'Normální',
+                onChanged: onChanged,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: _PowerModeTile(
+                mode: AppPowerMode.batterySaver,
+                selectedMode: selectedMode,
+                isEnabled: isEnabled,
+                icon: Icons.eco_outlined,
+                label: 'Úsporný',
+                onChanged: onChanged,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: _PowerModeTile(
+                mode: AppPowerMode.ultra,
+                selectedMode: selectedMode,
+                isEnabled: isEnabled,
+                icon: Icons.battery_alert_outlined,
+                label: 'Ultra',
+                onChanged: onChanged,
+              ),
             ),
           ],
         ),
@@ -417,21 +407,21 @@ class _PowerModeTile extends StatelessWidget {
       onTap: isEnabled ? () => onChanged(mode) : null,
       child: DecoratedBox(
         decoration: BoxDecoration(
-          color: selected ? const Color(0xFFFFD166) : const Color(0xFF18202A),
+          color: selected ? AppColors.primary : AppColors.secondaryBackground,
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: selected ? const Color(0xFFFFD166) : const Color(0xFF2D3748)),
+          border: Border.all(color: selected ? AppColors.primaryLight : AppColors.border),
         ),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 9),
           child: Column(
             children: [
-              Icon(icon, color: selected ? const Color(0xFF111318) : const Color(0xFFFFD166), size: 24),
-              const SizedBox(height: 6),
+              Icon(icon, color: selected ? AppColors.background : AppColors.primaryLight, size: 24),
+              const SizedBox(height: 5),
               Text(
                 label,
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  color: selected ? const Color(0xFF111318) : Colors.white,
+                  color: selected ? AppColors.background : AppColors.textPrimary,
                   fontWeight: FontWeight.w900,
                   fontSize: 12,
                 ),
@@ -443,49 +433,28 @@ class _PowerModeTile extends StatelessWidget {
     );
   }
 }
-class _ModeMessage extends StatelessWidget {
-  const _ModeMessage({required this.mode});
-
-  final AppPowerMode mode;
-@override
-  Widget build(BuildContext context) {
-    final isUltra = mode == AppPowerMode.ultra;
-    return Card(
-      color: isUltra ? const Color(0xFF3A1B1B) : const Color(0xFF101820),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(isUltra ? Icons.warning_amber_outlined : Icons.info_outline, color: const Color(0xFFFFD166)),
-            const SizedBox(width: 12),
-            Expanded(child: Text(mode.description, style: Theme.of(context).textTheme.bodyLarge)),
-          ],
-        ),
-      ),
-    );
-  }
-}
 
 class _StatusCard extends StatelessWidget {
-  const _StatusCard({required this.icon, required this.title});
+  const _StatusCard({required this.icon, required this.title, required this.color});
 
   final IconData icon;
   final String title;
-@override
+  final Color color;
+
+  @override
   Widget build(BuildContext context) {
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(18),
+        padding: const EdgeInsets.all(14),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(icon, color: const Color(0xFFFFD166), size: 28),
-            const SizedBox(width: 14),
+            Icon(icon, color: color, size: 26),
+            const SizedBox(width: 12),
             Expanded(
               child: Text(
                 title,
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(color: const Color(0xFFFFFFFF)),
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(color: AppColors.textPrimary),
               ),
             ),
           ],
@@ -499,38 +468,41 @@ class _SosButton extends StatelessWidget {
   const _SosButton({required this.onPressed});
 
   final VoidCallback onPressed;
-@override
+
+  @override
   Widget build(BuildContext context) {
     return Column(
       children: [
         SizedBox(
-          width: 164,
-          height: 164,
+          width: 176,
+          height: 176,
           child: FilledButton(
             style: FilledButton.styleFrom(
-              backgroundColor: const Color(0xFFB91C1C),
+              backgroundColor: AppColors.emergencyRed,
               foregroundColor: Colors.white,
               shape: const CircleBorder(),
               padding: EdgeInsets.zero,
-              elevation: 3,
+              elevation: 6,
+              shadowColor: AppColors.emergencyRed.withValues(alpha: 0.45),
             ),
             onPressed: onPressed,
             child: const Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.warning_amber_rounded, size: 42),
+                Icon(Icons.warning_amber_rounded, size: 46),
                 SizedBox(height: 4),
-                Text('SOS', style: TextStyle(fontSize: 42, fontWeight: FontWeight.w900, letterSpacing: 0)),
+                Text('SOS', style: TextStyle(fontSize: 46, fontWeight: FontWeight.w900, letterSpacing: 0)),
               ],
             ),
           ),
         ),
         const SizedBox(height: 10),
-        const Text('Vytvořit nouzovou zprávu', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: Color(0xFFFFFFFF))),
+        const Text('Vytvořit nouzovou zprávu', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
       ],
     );
   }
 }
+
 class _QuickActions extends StatelessWidget {
   const _QuickActions({required this.onCreateMessage, required this.onOpenFindHelp, required this.onOpenGuides});
 
@@ -582,16 +554,17 @@ class _QuickActions extends StatelessWidget {
     _QuickAction(Icons.place_outlined, 'Najít nejbližší pomoc', opensFindHelp: true),
     _QuickAction(Icons.menu_book_outlined, 'Krizové návody', opensGuides: true),
   ];
-@override
+
+  @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Text('Rychlé akce', style: Theme.of(context).textTheme.titleLarge),
-        const SizedBox(height: 12),
+        const SizedBox(height: 10),
         for (final action in _actions) ...[
           SizedBox(
-            height: 54,
+            height: 52,
             child: OutlinedButton.icon(
               onPressed: () {
                 if (action.opensFindHelp) {
@@ -606,7 +579,7 @@ class _QuickActions extends StatelessWidget {
               label: Text(action.label),
             ),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 9),
         ],
       ],
     );
@@ -634,6 +607,7 @@ class _QuickAction {
   final bool opensFindHelp;
   final bool opensGuides;
 }
+
 class _UltraDashboard extends StatelessWidget {
   const _UltraDashboard({
     required this.batteryText,
@@ -654,7 +628,8 @@ class _UltraDashboard extends StatelessWidget {
   final VoidCallback onCreateSos;
   final VoidCallback onOpenFindHelp;
   final VoidCallback onOpenGuides;
-@override
+
+  @override
   Widget build(BuildContext context) {
     const okAction = _QuickAction(
       Icons.check_circle_outline,
@@ -667,48 +642,46 @@ class _UltraDashboard extends StatelessWidget {
 
     return SafeArea(
       child: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+        padding: const EdgeInsets.fromLTRB(18, 10, 18, 22),
         children: [
           const Text(
             'Blackout Prague',
-            style: TextStyle(fontSize: 28, fontWeight: FontWeight.w900, color: Color(0xFFFFFFFF)),
+            style: TextStyle(fontSize: 28, fontWeight: FontWeight.w900, color: AppColors.textPrimary),
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 14),
           _PowerModeSelector(selectedMode: mode, isEnabled: !isLoadingMode, onChanged: onModeChanged),
-          const SizedBox(height: 16),
-          const _ModeMessage(mode: AppPowerMode.ultra),
-          const SizedBox(height: 16),
+          const SizedBox(height: 14),
           Text(batteryText, style: Theme.of(context).textTheme.headlineMedium),
-          const SizedBox(height: 20),
+          const SizedBox(height: 18),
           _SosButton(onPressed: onCreateSos),
           const SizedBox(height: 16),
           SizedBox(
-            height: 54,
+            height: 52,
             child: OutlinedButton.icon(
               onPressed: () => onCreateMessage(okAction),
               icon: const Icon(Icons.check_circle_outline),
               label: const Text('Jsem v pořádku'),
             ),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 9),
           SizedBox(
-            height: 54,
+            height: 52,
             child: OutlinedButton.icon(
               onPressed: onOpenFindHelp,
               icon: const Icon(Icons.place_outlined),
               label: const Text('Najít nejbližší pomoc'),
             ),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 9),
           SizedBox(
-            height: 54,
+            height: 52,
             child: OutlinedButton.icon(
               onPressed: onOpenGuides,
               icon: const Icon(Icons.menu_book_outlined),
               label: const Text('Návody'),
             ),
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 16),
           const Text('Mesh: krátké krizové zprávy přes Bluetooth'),
         ],
       ),

@@ -46,7 +46,7 @@ class _GuideScreenState extends State<GuideScreen> {
           const SizedBox(height: 8),
           Text(
             'Offline postupy pro nejčastější situace při blackoutu.',
-            style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: const Color(0xFFD6D9DE)),
+            style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: const Color(0xFFC7D0DC)),
           ),
           if (_isDemoModeEnabled) ...[
             const SizedBox(height: 12),
@@ -149,12 +149,12 @@ class _OfflineGuidesBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
-      color: const Color(0xFF101820),
+      color: const Color(0xFF121821),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Row(
           children: [
-            const Icon(Icons.offline_pin_outlined, color: Color(0xFFFFD166)),
+            const Icon(Icons.offline_pin_outlined, color: Color(0xFF00D1FF)),
             const SizedBox(width: 12),
             Expanded(
               child: Text('Návody jsou dostupné offline.', style: Theme.of(context).textTheme.bodyMedium),
@@ -221,7 +221,7 @@ class _GuideCard extends StatelessWidget {
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(Icons.menu_book_outlined, color: Color(0xFFFFD166), size: 30),
+                  const Icon(Icons.menu_book_outlined, color: Color(0xFF00D1FF), size: 30),
                   const SizedBox(width: 14),
                   Expanded(
                     child: Column(
@@ -238,7 +238,7 @@ class _GuideCard extends StatelessWidget {
               const SizedBox(height: 12),
               Row(
                 children: [
-                  const Icon(Icons.checklist_outlined, size: 20, color: Color(0xFFFFD166)),
+                  const Icon(Icons.checklist_outlined, size: 20, color: Color(0xFF00D1FF)),
                   const SizedBox(width: 8),
                   Text('$checkedCount / ${guide.steps.length} kroků'),
                   const Spacer(),
@@ -369,7 +369,7 @@ class _AdviceSection extends StatelessWidget {
           children: [
             Row(
               children: [
-                Icon(icon, color: const Color(0xFFFFD166)),
+                Icon(icon, color: const Color(0xFF00D1FF)),
                 const SizedBox(width: 10),
                 Text(title, style: Theme.of(context).textTheme.titleLarge),
               ],

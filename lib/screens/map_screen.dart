@@ -89,7 +89,7 @@ class _MapScreenState extends State<MapScreen> {
           const SizedBox(height: 8),
           Text(
             'Poloha se používá jen jednorázově kvůli úspoře baterie.',
-            style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: const Color(0xFFD6D9DE)),
+            style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: const Color(0xFFC7D0DC)),
           ),
 
           const SizedBox(height: 12),
@@ -138,7 +138,7 @@ class _MapScreenState extends State<MapScreen> {
           const SizedBox(height: 8),
           Text(
             _mapMode == MapMode.onlineTiles ? '© OpenStreetMap contributors' : '© OpenMapTiles · © OpenStreetMap contributors',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(color: const Color(0xFFD6D9DE)),
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(color: const Color(0xFFC7D0DC)),
           ),
           if (selectedPoint != null) ...[
             const SizedBox(height: 12),
@@ -155,7 +155,7 @@ class _MapScreenState extends State<MapScreen> {
           const SizedBox(height: 18),
           Text('Body pomoci', style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: 8),
-          Text('Seznam zůstává dostupný i bez mapových podkladů.', style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: const Color(0xFFD6D9DE))),
+          Text('Seznam zůstává dostupný i bez mapových podkladů.', style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: const Color(0xFFC7D0DC))),
           const SizedBox(height: 10),
           for (final point in visiblePoints.take(8)) ...[
             _FallbackHelpPointCard(
@@ -525,15 +525,15 @@ class _MapScreenState extends State<MapScreen> {
 
   Color _typeColor(HelpPointType type) {
     return switch (type) {
-      HelpPointType.hospital => const Color(0xFFEF4444),
-      HelpPointType.pharmacy => const Color(0xFF22C55E),
-      HelpPointType.police => const Color(0xFF38BDF8),
-      HelpPointType.fireStation => const Color(0xFFF97316),
-      HelpPointType.crisisCenter => const Color(0xFFA78BFA),
-      HelpPointType.waterPoint => const Color(0xFF06B6D4),
-      HelpPointType.chargingPoint => const Color(0xFFFACC15),
-      HelpPointType.shelter => const Color(0xFF94A3B8),
-      HelpPointType.cityOffice => const Color(0xFFE5E7EB),
+      HelpPointType.hospital => const Color(0xFFFF4B4B),
+      HelpPointType.pharmacy => const Color(0xFF2ED573),
+      HelpPointType.police => const Color(0xFF00D1FF),
+      HelpPointType.fireStation => const Color(0xFFFF9F43),
+      HelpPointType.crisisCenter => const Color(0xFF5CE7FF),
+      HelpPointType.waterPoint => const Color(0xFF00D1FF),
+      HelpPointType.chargingPoint => const Color(0xFFFF9F43),
+      HelpPointType.shelter => const Color(0xFFC7D0DC),
+      HelpPointType.cityOffice => const Color(0xFFC7D0DC),
     };
   }
 }
@@ -595,7 +595,7 @@ class _OnlineHelpMap extends StatelessWidget {
             polylines: [
               Polyline(
                 points: [LatLng(lastKnownLocation!.latitude, lastKnownLocation!.longitude), LatLng(navigationPoint!.latitude, navigationPoint!.longitude)],
-                color: const Color(0xFFFFD166),
+                color: const Color(0xFF00D1FF),
                 strokeWidth: 5,
               ),
             ],
@@ -617,7 +617,7 @@ class _OnlineHelpMap extends StatelessWidget {
         height: 48,
         child: Icon(
           lastKnownLocation == null ? Icons.location_city : Icons.my_location,
-          color: lastKnownLocation == null ? const Color(0xFFFFD166) : const Color(0xFF38BDF8),
+          color: lastKnownLocation == null ? const Color(0xFF00D1FF) : const Color(0xFF00D1FF),
           size: 38,
         ),
       ),
@@ -709,7 +709,7 @@ class _OfflineVectorHelpMap extends StatelessWidget {
             polylines: [
               Polyline(
                 points: [LatLng(lastKnownLocation!.latitude, lastKnownLocation!.longitude), LatLng(navigationPoint!.latitude, navigationPoint!.longitude)],
-                color: const Color(0xFFFFD166),
+                color: const Color(0xFF00D1FF),
                 strokeWidth: 5,
               ),
             ],
@@ -731,7 +731,7 @@ class _OfflineVectorHelpMap extends StatelessWidget {
         height: 48,
         child: Icon(
           lastKnownLocation == null ? Icons.location_city : Icons.my_location,
-          color: lastKnownLocation == null ? const Color(0xFFFFD166) : const Color(0xFF38BDF8),
+          color: lastKnownLocation == null ? const Color(0xFF00D1FF) : const Color(0xFF00D1FF),
           size: 38,
         ),
       ),
@@ -786,14 +786,14 @@ class _OfflineMapError extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ColoredBox(
-      color: const Color(0xFF101820),
+      color: const Color(0xFF121821),
       child: Center(
         child: Padding(
           padding: const EdgeInsets.all(20),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.error_outline, color: Color(0xFFFFD166), size: 44),
+              const Icon(Icons.error_outline, color: Color(0xFF00D1FF), size: 44),
               const SizedBox(height: 12),
               Text(
                 'Soubor offline mapy existuje, ale nepodařilo se vykreslit vektorové dlaždice.',
@@ -804,7 +804,7 @@ class _OfflineMapError extends StatelessWidget {
               const Text('Zkontrolujte renderer, styl a TMS/XYZ schéma.', textAlign: TextAlign.center),
               if (error != null && error!.isNotEmpty) ...[
                 const SizedBox(height: 10),
-                Text(error!, textAlign: TextAlign.center, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: const Color(0xFFD6D9DE))),
+                Text(error!, textAlign: TextAlign.center, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: const Color(0xFFC7D0DC))),
               ],
             ],
           ),
@@ -845,7 +845,7 @@ class _MapModeNotice extends StatelessWidget {
         : mode.czechDescription;
 
     return Card(
-      color: mode == MapMode.offlineMap ? const Color(0xFF3A2E12) : const Color(0xFF101820),
+      color: mode == MapMode.offlineMap ? const Color(0xFF1A2230) : const Color(0xFF121821),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         child: Text(text, style: Theme.of(context).textTheme.bodyMedium),
@@ -1013,13 +1013,13 @@ class _MapMarkerButton extends StatelessWidget {
       icon: DecoratedBox(
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          color: isSelected ? const Color(0xFFFFD166) : const Color(0xEE111318),
+          color: isSelected ? const Color(0xFF00D1FF) : const Color(0xEE111318),
           border: Border.all(color: isSelected ? Colors.white : color, width: isSelected ? 3 : 2),
           boxShadow: const [BoxShadow(color: Color(0x88000000), blurRadius: 8)],
         ),
         child: Padding(
           padding: const EdgeInsets.all(5),
-          child: Icon(icon, color: isSelected ? const Color(0xFF111318) : color, size: isSelected ? 28 : 23),
+          child: Icon(icon, color: isSelected ? const Color(0xFF121821) : color, size: isSelected ? 28 : 23),
         ),
       ),
     );
@@ -1048,7 +1048,7 @@ class _SelectedPointCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
-      color: const Color(0xFF3A2E12),
+      color: const Color(0xFF1A2230),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -1057,7 +1057,7 @@ class _SelectedPointCard extends StatelessWidget {
             ListTile(
               contentPadding: EdgeInsets.zero,
               onTap: onOpen,
-              leading: const Icon(Icons.place, color: Color(0xFFFFD166)),
+              leading: const Icon(Icons.place, color: Color(0xFF00D1FF)),
               title: Text('Vybraný bod: ${point.name}'),
               subtitle: Text('${point.type.czechLabel} · ${point.areaName} · ${distanceKm.toStringAsFixed(1)} km · $walkingMinutes min pěšky'),
               trailing: const Icon(Icons.expand_less),
@@ -1092,10 +1092,10 @@ class _FallbackHelpPointCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
-      color: isSelected ? const Color(0xFF3A2E12) : null,
+      color: isSelected ? const Color(0xFF1A2230) : null,
       child: ListTile(
         onTap: onOpen,
-        leading: Icon(isSelected ? Icons.place : Icons.place_outlined, color: const Color(0xFFFFD166)),
+        leading: Icon(isSelected ? Icons.place : Icons.place_outlined, color: const Color(0xFF00D1FF)),
         title: Text(point.name),
         subtitle: Text('${point.type.czechLabel} · ${point.areaName} · ${distanceKm.toStringAsFixed(1)} km'),
         trailing: const Icon(Icons.chevron_right),

@@ -44,7 +44,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Icon(Icons.person_outline, size: 34, color: Color(0xFFFFD166)),
+                        const Icon(Icons.person_outline, size: 34, color: Color(0xFF00D1FF)),
                         const SizedBox(width: 14),
                         Expanded(
                           child: Column(

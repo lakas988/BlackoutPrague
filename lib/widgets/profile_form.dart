@@ -234,13 +234,13 @@ class _PrivacyNote extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
-      color: const Color(0xFF101820),
+      color: const Color(0xFF121821),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Icon(Icons.lock_outline, color: Color(0xFFFFD166)),
+            const Icon(Icons.lock_outline, color: Color(0xFF00D1FF)),
             const SizedBox(width: 12),
             Expanded(
               child: Text('Citlivé údaje zůstávají pouze v tomto zařízení.', style: Theme.of(context).textTheme.bodyMedium),

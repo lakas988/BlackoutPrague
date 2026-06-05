@@ -156,7 +156,7 @@ class _OnboardingProgress extends StatelessWidget {
             value: currentStep / 4,
             minHeight: 8,
             borderRadius: BorderRadius.circular(8),
-            backgroundColor: const Color(0xFF242832),
+            backgroundColor: const Color(0xFF1A2230),
           ),
         ),
         const SizedBox(width: 12),
@@ -176,7 +176,7 @@ class _WelcomeStep extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 24, 20, 24),
       children: [
-        const Icon(Icons.offline_bolt_outlined, size: 56, color: Color(0xFFFFD166)),
+        const Icon(Icons.offline_bolt_outlined, size: 56, color: Color(0xFF00D1FF)),
         const SizedBox(height: 24),
         Text('Blackout Prague', style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontSize: 34)),
         const SizedBox(height: 16),
@@ -446,7 +446,7 @@ class _InfoCard extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(icon, color: const Color(0xFFFFD166), size: 30),
+            Icon(icon, color: const Color(0xFF00D1FF), size: 30),
             const SizedBox(width: 14),
             Expanded(
               child: Column(

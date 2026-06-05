@@ -1,4 +1,4 @@
-﻿import 'dart:async';
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -65,7 +65,7 @@ class _MeshScreenState extends State<MeshScreen> {
           const SizedBox(height: 8),
           Text(
             'Reálný Bluetooth mesh předává krátké krizové zprávy mezi zařízeními bez internetu.',
-            style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: const Color(0xFFD6D9DE)),
+            style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: const Color(0xFFC7D0DC)),
           ),
           const SizedBox(height: 16),
           const _SectionTitle(title: 'Stav sítě'),
@@ -91,7 +91,7 @@ class _MeshScreenState extends State<MeshScreen> {
             const SizedBox(height: 8),
             Text(
               'Zapněte Bluetooth mesh pro příjem zpráv.',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: const Color(0xFFD6D9DE)),
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: const Color(0xFFC7D0DC)),
             ),
           ],
           if (_isDemoModeEnabled) ...[
@@ -508,7 +508,7 @@ class _RealBleStatusCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                Icon(isEnabled ? Icons.bluetooth_connected_outlined : Icons.bluetooth_outlined, color: const Color(0xFFFFD166), size: 28),
+                Icon(isEnabled ? Icons.bluetooth_connected_outlined : Icons.bluetooth_outlined, color: const Color(0xFF00D1FF), size: 28),
                 const SizedBox(width: 12),
                 Expanded(child: Text(isEnabled ? 'Reálný Bluetooth mesh je zapnutý' : 'Reálný Bluetooth mesh je vypnutý', style: Theme.of(context).textTheme.titleMedium)),
               ],
@@ -520,7 +520,7 @@ class _RealBleStatusCard extends StatelessWidget {
             _StatusLine(label: 'Přijaté zprávy', value: '$receivedCount'),
             if (lastError != null) ...[
               const SizedBox(height: 6),
-              Text(lastError!, style: const TextStyle(color: Color(0xFFFFD166), fontWeight: FontWeight.w800)),
+              Text(lastError!, style: const TextStyle(color: Color(0xFF00D1FF), fontWeight: FontWeight.w800)),
             ],
           ],
         ),
@@ -545,7 +545,7 @@ class _DemoSimulationCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
-      color: const Color(0xFF3A1B1B),
+      color: const Color(0xFF1A2230),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -592,7 +592,7 @@ class _StatusLine extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 8),
       child: Row(
         children: [
-          Expanded(child: Text(label, style: const TextStyle(color: Color(0xFFD6D9DE)))),
+          Expanded(child: Text(label, style: const TextStyle(color: Color(0xFFC7D0DC)))),
           Text(value, style: Theme.of(context).textTheme.titleMedium),
         ],
       ),
@@ -636,9 +636,9 @@ class _MessageCard extends StatelessWidget {
     final inactive = message.isExpired || message.isOutdated;
     final important = message.priority == EmergencyMessagePriority.high || message.priority == EmergencyMessagePriority.critical;
     final cardColor = inactive
-        ? const Color(0xFF111318)
+        ? const Color(0xFF121821)
         : important
-            ? const Color(0xFF2A1518)
+            ? const Color(0xFF1A2230)
             : null;
 
     return Opacity(
@@ -653,7 +653,7 @@ class _MessageCard extends StatelessWidget {
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(_typeIcon(message.type), color: important ? const Color(0xFFFF6B6B) : const Color(0xFFFFD166), size: 30),
+                  Icon(_typeIcon(message.type), color: important ? const Color(0xFFFF4B4B) : const Color(0xFF00D1FF), size: 30),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(
@@ -674,9 +674,9 @@ class _MessageCard extends StatelessWidget {
                 children: [
                   _Badge(text: 'Priorita: ${message.priority.czechLabel}', color: _priorityColor(message.priority)),
                   _Badge(text: message.isOutgoing ? 'Odeslaná' : 'Přijatá'),
-                  if (message.isDemo) const _Badge(text: 'Demo', color: Color(0xFF7F1D1D)),
-                  if (message.isExpired) const _Badge(text: 'Vypršelo', color: Color(0xFF7F1D1D)),
-                  if (message.isOutdated) const _Badge(text: 'Neaktuální', color: Color(0xFF7F1D1D)),
+                  if (message.isDemo) const _Badge(text: 'Demo', color: Color(0xFFFF4B4B)),
+                  if (message.isExpired) const _Badge(text: 'Vypršelo', color: Color(0xFFFF4B4B)),
+                  if (message.isOutdated) const _Badge(text: 'Neaktuální', color: Color(0xFFFF4B4B)),
                 ],
               ),
               const SizedBox(height: 12),
@@ -745,10 +745,10 @@ class _MessageCard extends StatelessWidget {
 
   Color _priorityColor(EmergencyMessagePriority priority) {
     return switch (priority) {
-      EmergencyMessagePriority.low => const Color(0xFF166534),
-      EmergencyMessagePriority.medium => const Color(0xFF1D4ED8),
-      EmergencyMessagePriority.high => const Color(0xFFB45309),
-      EmergencyMessagePriority.critical => const Color(0xFF991B1B),
+      EmergencyMessagePriority.low => const Color(0xFF2ED573),
+      EmergencyMessagePriority.medium => const Color(0xFF00D1FF),
+      EmergencyMessagePriority.high => const Color(0xFFFF9F43),
+      EmergencyMessagePriority.critical => const Color(0xFFFF4B4B),
     };
   }
 
@@ -768,7 +768,7 @@ class _MessageCard extends StatelessWidget {
 }
 
 class _Badge extends StatelessWidget {
-  const _Badge({required this.text, this.color = const Color(0xFF263241)});
+  const _Badge({required this.text, this.color = const Color(0xFF1A2230)});
 
   final String text;
   final Color color;
@@ -798,7 +798,7 @@ class _InfoLine extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 20, color: const Color(0xFFFFD166)),
+          Icon(icon, size: 20, color: const Color(0xFF00D1FF)),
           const SizedBox(width: 10),
           Expanded(child: Text(text)),
         ],

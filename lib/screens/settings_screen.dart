@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 
 import '../services/demo_mode_service.dart';
 import '../services/message_service.dart';
@@ -41,7 +41,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             const SizedBox(height: 8),
             Text(
               'Volby pro krizový režim, soukromí a Bluetooth komunikaci.',
-              style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: const Color(0xFFD6D9DE)),
+              style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: const Color(0xFFC7D0DC)),
             ),
             const SizedBox(height: 18),
             _SettingsSection(
@@ -158,7 +158,7 @@ class _SettingsSection extends StatelessWidget {
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(icon, size: 30, color: const Color(0xFFFFD166)),
+                Icon(icon, size: 30, color: const Color(0xFF00D1FF)),
                 const SizedBox(width: 12),
                 Expanded(child: Text(title, style: Theme.of(context).textTheme.titleLarge)),
               ],

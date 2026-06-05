@@ -72,7 +72,7 @@ class _FindHelpScreenState extends State<FindHelpScreen> {
           const SizedBox(height: 8),
           Text(
             'Poloha se používá jen jednorázově kvůli úspoře baterie.',
-            style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: const Color(0xFFD6D9DE)),
+            style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: const Color(0xFFC7D0DC)),
           ),
           const SizedBox(height: 18),
           _LocationSourceCard(
@@ -448,7 +448,7 @@ class _DemoFindHelpNotice extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
-      color: const Color(0xFF3A1B1B),
+      color: const Color(0xFF1A2230),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Text(
@@ -466,7 +466,7 @@ class _SampleDataNotice extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
-      color: const Color(0xFF101820),
+      color: const Color(0xFF121821),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Text(
@@ -487,7 +487,7 @@ class _ResultBasisNotice extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
-      color: const Color(0xFF111827),
+      color: const Color(0xFF1A2230),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Text(
@@ -555,7 +555,7 @@ class _HelpPointCard extends StatelessWidget {
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(_typeIcon(point.type), color: const Color(0xFFFFD166), size: 32),
+                Icon(_typeIcon(point.type), color: const Color(0xFF00D1FF), size: 32),
                 const SizedBox(width: 14),
                 Expanded(
                   child: Column(
@@ -657,7 +657,7 @@ class _InfoBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DecoratedBox(
-      decoration: BoxDecoration(color: const Color(0xFF263241), borderRadius: BorderRadius.circular(8)),
+      decoration: BoxDecoration(color: const Color(0xFF1A2230), borderRadius: BorderRadius.circular(8)),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         child: Text(text, style: const TextStyle(fontWeight: FontWeight.w700)),
@@ -674,7 +674,7 @@ class _WarningBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DecoratedBox(
-      decoration: BoxDecoration(color: const Color(0xFF7F1D1D), borderRadius: BorderRadius.circular(8)),
+      decoration: BoxDecoration(color: const Color(0xFFFF4B4B), borderRadius: BorderRadius.circular(8)),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         child: Text(text, style: const TextStyle(fontWeight: FontWeight.w800, color: Colors.white)),
@@ -691,7 +691,7 @@ class _ServiceChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DecoratedBox(
-      decoration: BoxDecoration(border: Border.all(color: const Color(0xFF3A404A)), borderRadius: BorderRadius.circular(8)),
+      decoration: BoxDecoration(border: Border.all(color: const Color(0xFF263445)), borderRadius: BorderRadius.circular(8)),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         child: Text(text),
@@ -711,7 +711,7 @@ class _InfoRow extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, size: 20, color: const Color(0xFFFFD166)),
+        Icon(icon, size: 20, color: const Color(0xFF00D1FF)),
         const SizedBox(width: 10),
         Expanded(child: Text(text)),
       ],
