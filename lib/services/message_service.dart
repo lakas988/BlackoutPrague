@@ -1,10 +1,12 @@
 ﻿import 'dart:convert';
+import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../data/prague_areas.dart';
 import '../models/emergency_message.dart';
+import 'device_id_service.dart';
 import 'selected_area_service.dart';
 
 class MessageService extends ChangeNotifier {
@@ -12,9 +14,12 @@ class MessageService extends ChangeNotifier {
 
   static final MessageService instance = MessageService._();
   static const _messagesKey = 'blackout_prague_emergency_messages';
+  static const _defaultMaxHops = 5;
 
   final _selectedAreaService = SelectedAreaService();
+  final _deviceIdService = DeviceIdService.instance;
   final List<EmergencyMessage> _messages = [];
+  final math.Random _random = math.Random.secure();
   bool _isLoaded = false;
 
   List<EmergencyMessage> get messages => List.unmodifiable(_sortedMessages());
@@ -49,12 +54,14 @@ class MessageService extends ChangeNotifier {
     required EmergencyMessageType type,
     required String text,
     required EmergencyMessagePriority priority,
-    int ttlMinutes = 180,
+    int ttlMinutes = 60,
   }) async {
     await loadMessages();
     final areaName = await _currentAreaName();
+    final deviceId = await _deviceIdService.getDeviceId();
     final message = EmergencyMessage(
-      id: _createId('out'),
+      id: _createMeshMessageId(),
+      originDeviceId: deviceId,
       type: type,
       text: text,
       createdAt: DateTime.now(),
@@ -63,6 +70,7 @@ class MessageService extends ChangeNotifier {
       priority: priority,
       ttlMinutes: ttlMinutes,
       hopCount: 0,
+      maxHops: _defaultMaxHops,
       verifiedCount: 0,
       isOutgoing: true,
       isOutdated: false,
@@ -85,6 +93,7 @@ class MessageService extends ChangeNotifier {
     await loadMessages();
     final message = EmergencyMessage(
       id: _createId(isDemo ? 'demo' : 'in'),
+      originDeviceId: isDemo ? 'DEMO' : 'UNKNOWN',
       type: type,
       text: text,
       createdAt: DateTime.now(),
@@ -93,6 +102,7 @@ class MessageService extends ChangeNotifier {
       priority: priority,
       ttlMinutes: ttlMinutes,
       hopCount: hopCount,
+      maxHops: _defaultMaxHops,
       verifiedCount: verifiedCount,
       isOutgoing: false,
       isOutdated: false,
@@ -111,6 +121,7 @@ class MessageService extends ChangeNotifier {
     final demoMessages = [
       EmergencyMessage(
         id: 'demo_water_${now.microsecondsSinceEpoch}',
+        originDeviceId: 'DEMO',
         type: EmergencyMessageType.water,
         text: 'Demo: Výdej vody hlášen u školy.',
         createdAt: now.subtract(const Duration(minutes: 8)),
@@ -119,12 +130,14 @@ class MessageService extends ChangeNotifier {
         priority: EmergencyMessagePriority.medium,
         ttlMinutes: 180,
         hopCount: 2,
+        maxHops: _defaultMaxHops,
         verifiedCount: 1,
         isOutgoing: false,
         isOutdated: false,
       ),
       EmergencyMessage(
         id: 'demo_charge_${now.microsecondsSinceEpoch}',
+        originDeviceId: 'DEMO',
         type: EmergencyMessageType.info,
         text: 'Demo: Dobíjecí místo dostupné u komunitního centra.',
         createdAt: now.subtract(const Duration(minutes: 15)),
@@ -133,12 +146,14 @@ class MessageService extends ChangeNotifier {
         priority: EmergencyMessagePriority.medium,
         ttlMinutes: 180,
         hopCount: 1,
+        maxHops: _defaultMaxHops,
         verifiedCount: 2,
         isOutgoing: false,
         isOutdated: false,
       ),
       EmergencyMessage(
         id: 'demo_crossing_${now.microsecondsSinceEpoch}',
+        originDeviceId: 'DEMO',
         type: EmergencyMessageType.danger,
         text: 'Demo: Nefunkční křižovatka.',
         createdAt: now.subtract(const Duration(minutes: 22)),
@@ -147,12 +162,14 @@ class MessageService extends ChangeNotifier {
         priority: EmergencyMessagePriority.high,
         ttlMinutes: 120,
         hopCount: 3,
+        maxHops: _defaultMaxHops,
         verifiedCount: 1,
         isOutgoing: false,
         isOutdated: false,
       ),
       EmergencyMessage(
         id: 'demo_meds_${now.microsecondsSinceEpoch}',
+        originDeviceId: 'DEMO',
         type: EmergencyMessageType.medication,
         text: 'Demo: Osoba potřebuje léky.',
         createdAt: now.subtract(const Duration(minutes: 30)),
@@ -161,6 +178,7 @@ class MessageService extends ChangeNotifier {
         priority: EmergencyMessagePriority.high,
         ttlMinutes: 120,
         hopCount: 2,
+        maxHops: _defaultMaxHops,
         verifiedCount: 0,
         isOutgoing: false,
         isOutdated: false,
@@ -203,7 +221,12 @@ class MessageService extends ChangeNotifier {
   }
 
   Future<EmergencyMessage?> relayMessageAndReturn(String messageId) async {
-    return _updateMessageAndReturn(messageId, (message) => message.copyWith(hopCount: message.hopCount + 1));
+    return _updateMessageAndReturn(messageId, (message) {
+      if (message.isExpired || message.hopCount >= message.maxHops) {
+        return message;
+      }
+      return message.copyWith(hopCount: message.hopCount + 1);
+    });
   }
 
   Future<void> markMessageOutdated(String messageId) async {
@@ -276,5 +299,11 @@ class MessageService extends ChangeNotifier {
 
   String _createId(String prefix) {
     return '${prefix}_${DateTime.now().microsecondsSinceEpoch}_${_messages.length}';
+  }
+
+  String _createMeshMessageId() {
+    final nowPart = DateTime.now().microsecondsSinceEpoch & 0xFFFFFF;
+    final randomPart = _random.nextInt(0xFFFFFF);
+    return (nowPart ^ randomPart).toRadixString(16).toUpperCase().padLeft(6, '0').substring(0, 6);
   }
 }

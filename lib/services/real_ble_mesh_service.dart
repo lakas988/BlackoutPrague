@@ -1,14 +1,15 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:flutter_ble_peripheral/flutter_ble_peripheral.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/emergency_message.dart';
+import 'device_id_service.dart';
 import 'message_service.dart';
 
 class RealBleMeshService extends ChangeNotifier {
@@ -17,10 +18,13 @@ class RealBleMeshService extends ChangeNotifier {
   static final RealBleMeshService instance = RealBleMeshService._();
   static const int _manufacturerId = 0x4247;
   static const Duration _advertisingWindow = Duration(seconds: 30);
+  static const Duration _seenRetention = Duration(hours: 24);
+  static const String _seenMessagesKey = 'blackout_prague_seen_mesh_messages';
 
   final FlutterBlePeripheral _peripheral = FlutterBlePeripheral();
   final MessageService _messageService = MessageService.instance;
-  final Set<String> _seenProtocolIds = <String>{};
+  final DeviceIdService _deviceIdService = DeviceIdService.instance;
+  final Map<String, DateTime> _seenMessageIds = <String, DateTime>{};
 
   StreamSubscription<List<ScanResult>>? _scanSubscription;
   Timer? _advertisingTimer;
@@ -29,6 +33,7 @@ class RealBleMeshService extends ChangeNotifier {
   bool _isScanning = false;
   bool _isAdvertising = false;
   bool _isAdvertisingSupported = true;
+  bool _seenMessagesLoaded = false;
   int _receivedCount = 0;
   String _permissionStatus = 'Neověřeno';
   String? _lastError;
@@ -69,7 +74,7 @@ class RealBleMeshService extends ChangeNotifier {
       _lastError = granted ? null : 'Bluetooth oprávnění nebyla povolena.';
       notifyListeners();
       return granted;
-    } catch (error) {
+    } catch (_) {
       _permissionStatus = 'Nelze ověřit';
       _lastError = 'Bluetooth oprávnění se nepodařilo ověřit.';
       notifyListeners();
@@ -103,6 +108,7 @@ class RealBleMeshService extends ChangeNotifier {
     }
 
     try {
+      await _loadSeenMessages();
       final supported = await FlutterBluePlus.isSupported;
       if (!supported) {
         _lastError = 'Toto zařízení nepodporuje Bluetooth LE.';
@@ -122,7 +128,7 @@ class RealBleMeshService extends ChangeNotifier {
       _isScanning = true;
       _lastError = null;
       notifyListeners();
-    } catch (error) {
+    } catch (_) {
       _isScanning = false;
       _lastError = 'Skenování BLE se nepodařilo spustit.';
       notifyListeners();
@@ -148,12 +154,27 @@ class RealBleMeshService extends ChangeNotifier {
       return false;
     }
 
+    if (message.isExpired) {
+      debugPrint('BLE mesh: message expired ${message.id}');
+      _lastError = 'Zpráva je po platnosti a nebude odeslána.';
+      notifyListeners();
+      return false;
+    }
+
+    if (message.hopCount >= message.maxHops) {
+      debugPrint('BLE mesh: max hops reached ${message.id}');
+      _lastError = 'Zpráva dosáhla limitu předání.';
+      notifyListeners();
+      return false;
+    }
+
     final granted = await requestBluetoothPermissions();
     if (!granted) {
       return false;
     }
 
     try {
+      await _loadSeenMessages();
       final supported = await _peripheral.isSupported;
       _isAdvertisingSupported = supported;
       if (!supported) {
@@ -162,9 +183,8 @@ class RealBleMeshService extends ChangeNotifier {
         return false;
       }
 
-      final protocolId = _protocolIdForMessage(message);
-      _seenProtocolIds.add(protocolId);
-      final payload = _encodeMessage(message, protocolId: protocolId);
+      await _rememberSeenMessage(message.id);
+      final payload = _encodeMessage(message);
       await stopAdvertising();
       await _peripheral.start(
         advertiseData: AdvertiseData(
@@ -180,7 +200,7 @@ class RealBleMeshService extends ChangeNotifier {
       _advertisingTimer = Timer(_advertisingWindow, stopAdvertising);
       notifyListeners();
       return true;
-    } catch (error) {
+    } catch (_) {
       _isAdvertising = false;
       _lastError = 'Toto zařízení nepodporuje BLE vysílání.';
       notifyListeners();
@@ -189,8 +209,21 @@ class RealBleMeshService extends ChangeNotifier {
   }
 
   Future<bool> relayMessage(EmergencyMessage message) async {
-    final relayedMessage = message.copyWith(hopCount: message.hopCount + 1);
-    return broadcastMessage(relayedMessage);
+    if (message.isExpired) {
+      debugPrint('BLE mesh: message expired ${message.id}');
+      _lastError = 'Zpráva je po platnosti a nebude předána dál.';
+      notifyListeners();
+      return false;
+    }
+
+    if (message.hopCount >= message.maxHops) {
+      debugPrint('BLE mesh: max hops reached ${message.id}');
+      _lastError = 'Zpráva dosáhla limitu předání.';
+      notifyListeners();
+      return false;
+    }
+
+    return broadcastMessage(message.copyWith(hopCount: message.hopCount + 1));
   }
 
   Future<void> stopAdvertising() async {
@@ -218,37 +251,61 @@ class RealBleMeshService extends ChangeNotifier {
     }
 
     final parsed = _ParsedBleMessage.tryParse(payload);
-    if (parsed == null || _seenProtocolIds.contains(parsed.id)) {
+    if (parsed == null) {
       return;
     }
 
-    final messageId = 'ble_${parsed.id}';
-    final alreadyStored = await _messageService.hasMessage(messageId);
-    if (alreadyStored) {
-      _seenProtocolIds.add(parsed.id);
+    await _loadSeenMessages();
+    final myDeviceId = await _deviceIdService.getDeviceId();
+    if (parsed.originDeviceId == myDeviceId) {
+      debugPrint('BLE mesh: own message ignored ${parsed.messageId}');
+      await _rememberSeenMessage(parsed.messageId);
+      return;
+    }
+
+    if (_hasSeenMessage(parsed.messageId) || await _messageService.hasMessage(parsed.messageId)) {
+      debugPrint('BLE mesh: duplicate ignored ${parsed.messageId}');
+      await _rememberSeenMessage(parsed.messageId);
+      return;
+    }
+
+    if (parsed.hopCount >= parsed.maxHops) {
+      debugPrint('BLE mesh: max hops reached ${parsed.messageId}');
+      await _rememberSeenMessage(parsed.messageId);
       return;
     }
 
     final message = EmergencyMessage(
-      id: messageId,
+      id: parsed.messageId,
+      originDeviceId: parsed.originDeviceId,
       type: parsed.type,
       text: _incomingText(parsed.type),
-      createdAt: DateTime.now(),
+      createdAt: parsed.createdAt,
       senderAlias: 'BLE uzel',
       approximateArea: parsed.areaName,
       priority: _priorityForType(parsed.type),
       ttlMinutes: _ttlForType(parsed.type),
       hopCount: parsed.hopCount,
+      maxHops: parsed.maxHops,
       verifiedCount: 0,
       isOutgoing: false,
       isOutdated: false,
     );
 
+    if (message.isExpired) {
+      debugPrint('BLE mesh: message expired ${parsed.messageId}');
+      await _rememberSeenMessage(parsed.messageId);
+      return;
+    }
+
     final added = await _messageService.addIncomingMessageIfNew(message);
+    await _rememberSeenMessage(parsed.messageId);
     if (added) {
-      _seenProtocolIds.add(parsed.id);
+      debugPrint('BLE mesh: message accepted ${parsed.messageId}');
       _receivedCount += 1;
       notifyListeners();
+    } else {
+      debugPrint('BLE mesh: duplicate ignored ${parsed.messageId}');
     }
   }
 
@@ -276,26 +333,23 @@ class RealBleMeshService extends ChangeNotifier {
     }
   }
 
-  String _encodeMessage(EmergencyMessage message, {required String protocolId}) {
+  String _encodeMessage(EmergencyMessage message) {
     final type = _protocolType(message.type);
     final area = _areaCode(message.approximateArea);
     final time = _timeCode(message.createdAt);
-    final hop = message.hopCount.clamp(0, 9);
-    return 'BP|$type|$area|$time|$protocolId|$hop';
+    final origin = _compactToken(message.originDeviceId, fallback: 'DX');
+    final messageId = _compactToken(message.id, fallback: 'MSG');
+    final hop = message.hopCount.clamp(0, message.maxHops);
+    final max = message.maxHops.clamp(1, 9);
+    return 'BP|$type|$area|$time|$origin|$messageId|$hop|$max';
   }
 
-  String _protocolIdForMessage(EmergencyMessage message) {
-    if (message.id.startsWith('ble_')) {
-      return message.id.substring(4).toUpperCase();
+  String _compactToken(String value, {required String fallback}) {
+    final compact = value.toUpperCase().replaceAll(RegExp('[^A-Z0-9]'), '');
+    if (compact.isEmpty) {
+      return fallback;
     }
-
-    var hash = 0;
-    for (final unit in message.id.codeUnits) {
-      hash = ((hash * 31) + unit) & 0xFFFFFF;
-    }
-    final randomSalt = math.Random(message.createdAt.microsecondsSinceEpoch).nextInt(0xFFFFFF);
-    final mixed = (hash ^ randomSalt) & 0xFFFFFF;
-    return mixed.toRadixString(16).toUpperCase().padLeft(6, '0').substring(0, 6);
+    return compact.length <= 10 ? compact : compact.substring(0, 10);
   }
 
   String _protocolType(EmergencyMessageType type) {
@@ -359,37 +413,136 @@ class RealBleMeshService extends ChangeNotifier {
       EmergencyMessageType.info => 120,
     };
   }
+
+  Future<void> _loadSeenMessages() async {
+    if (_seenMessagesLoaded) {
+      await _pruneSeenMessages();
+      return;
+    }
+
+    final preferences = await SharedPreferences.getInstance();
+    final rawSeenMessages = preferences.getString(_seenMessagesKey);
+    _seenMessageIds.clear();
+
+    if (rawSeenMessages != null && rawSeenMessages.isNotEmpty) {
+      try {
+        final decoded = jsonDecode(rawSeenMessages) as Map<String, dynamic>;
+        for (final entry in decoded.entries) {
+          final seenAt = DateTime.tryParse(entry.value as String? ?? '');
+          if (seenAt != null) {
+            _seenMessageIds[entry.key] = seenAt;
+          }
+        }
+      } on FormatException {
+        _seenMessageIds.clear();
+      } on TypeError {
+        _seenMessageIds.clear();
+      }
+    }
+
+    _seenMessagesLoaded = true;
+    await _pruneSeenMessages();
+  }
+
+  bool _hasSeenMessage(String messageId) {
+    return _seenMessageIds.containsKey(messageId);
+  }
+
+  Future<void> _rememberSeenMessage(String messageId) async {
+    _seenMessageIds[messageId] = DateTime.now();
+    await _saveSeenMessages();
+  }
+
+  Future<void> _pruneSeenMessages() async {
+    final threshold = DateTime.now().subtract(_seenRetention);
+    final beforeCount = _seenMessageIds.length;
+    _seenMessageIds.removeWhere((_, seenAt) => seenAt.isBefore(threshold));
+    if (_seenMessageIds.length != beforeCount) {
+      await _saveSeenMessages();
+    }
+  }
+
+  Future<void> _saveSeenMessages() async {
+    final preferences = await SharedPreferences.getInstance();
+    await preferences.setString(
+      _seenMessagesKey,
+      jsonEncode(_seenMessageIds.map((messageId, seenAt) => MapEntry(messageId, seenAt.toIso8601String()))),
+    );
+  }
 }
 
 class _ParsedBleMessage {
   const _ParsedBleMessage({
     required this.type,
     required this.areaName,
-    required this.id,
+    required this.createdAt,
+    required this.originDeviceId,
+    required this.messageId,
     required this.hopCount,
+    required this.maxHops,
   });
 
   final EmergencyMessageType type;
   final String areaName;
-  final String id;
+  final DateTime createdAt;
+  final String originDeviceId;
+  final String messageId;
   final int hopCount;
+  final int maxHops;
 
   static _ParsedBleMessage? tryParse(String payload) {
     final parts = payload.split('|');
-    if (parts.length != 6 || parts[0] != 'BP') {
+    if (parts.firstOrNull != 'BP') {
       return null;
     }
 
+    if (parts.length == 8) {
+      return _parseCurrent(parts);
+    }
+
+    if (parts.length == 6) {
+      return _parseLegacy(parts);
+    }
+
+    return null;
+  }
+
+  static _ParsedBleMessage? _parseCurrent(List<String> parts) {
     final type = _typeFromProtocol(parts[1]);
-    if (type == null || parts[4].isEmpty) {
+    final createdAt = _createdAtFromTimeCode(parts[3]);
+    final hopCount = int.tryParse(parts[6]);
+    final maxHops = int.tryParse(parts[7]);
+    if (type == null || createdAt == null || parts[4].isEmpty || parts[5].isEmpty || hopCount == null || maxHops == null) {
       return null;
     }
 
     return _ParsedBleMessage(
       type: type,
       areaName: _areaNameFromCode(parts[2]),
-      id: parts[4].toUpperCase(),
-      hopCount: int.tryParse(parts[5]) ?? 0,
+      createdAt: createdAt,
+      originDeviceId: parts[4].toUpperCase(),
+      messageId: parts[5].toUpperCase(),
+      hopCount: hopCount,
+      maxHops: maxHops,
+    );
+  }
+
+  static _ParsedBleMessage? _parseLegacy(List<String> parts) {
+    final type = _typeFromProtocol(parts[1]);
+    final createdAt = _createdAtFromTimeCode(parts[3]);
+    final hopCount = int.tryParse(parts[5]);
+    if (type == null || createdAt == null || parts[4].isEmpty || hopCount == null) {
+      return null;
+    }
+
+    return _ParsedBleMessage(
+      type: type,
+      areaName: _areaNameFromCode(parts[2]),
+      createdAt: createdAt,
+      originDeviceId: 'UNKNOWN',
+      messageId: parts[4].toUpperCase(),
+      hopCount: hopCount,
+      maxHops: 5,
     );
   }
 
@@ -413,4 +566,25 @@ class _ParsedBleMessage {
     }
     return 'Praha ${match.group(1)}';
   }
+
+  static DateTime? _createdAtFromTimeCode(String value) {
+    if (value.length != 4) {
+      return null;
+    }
+
+    final hour = int.tryParse(value.substring(0, 2));
+    final minute = int.tryParse(value.substring(2, 4));
+    if (hour == null || minute == null || hour > 23 || minute > 59) {
+      return null;
+    }
+
+    final now = DateTime.now();
+    var createdAt = DateTime(now.year, now.month, now.day, hour, minute);
+    if (createdAt.isAfter(now.add(const Duration(minutes: 5)))) {
+      createdAt = createdAt.subtract(const Duration(days: 1));
+    }
+    return createdAt;
+  }
 }
+
+
