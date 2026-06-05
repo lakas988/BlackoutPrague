@@ -1,0 +1,267 @@
+import '../models/emergency_guide.dart';
+
+const emergencyGuides = <EmergencyGuide>[
+  EmergencyGuide(
+    id: 'battery-saving',
+    title: 'Šetření baterie',
+    description: 'Jak prodloužit výdrž telefonu při výpadku proudu.',
+    priorityLevel: 'vysoká',
+    steps: [
+      EmergencyGuideStep(id: 'battery-1', text: 'Ztlumte jas a vypněte nepotřebné zvuky a vibrace.'),
+      EmergencyGuideStep(id: 'battery-2', text: 'Zavřete aplikace, které nepotřebujete.'),
+      EmergencyGuideStep(id: 'battery-3', text: 'Používejte polohu jen ručně, když ji opravdu potřebujete.'),
+      EmergencyGuideStep(id: 'battery-4', text: 'Posílejte krátké zprávy místo volání.'),
+      EmergencyGuideStep(id: 'battery-5', text: 'Telefon udržujte v teple a mimo přímý mráz.'),
+    ],
+    whatNotToDo: [
+      'Nenechávejte zapnutou obrazovku bez důvodu.',
+      'Nepoužívejte navigaci ani video, pokud to není nutné.',
+      'Nenabíjejte z neznámého poškozeného zdroje.',
+    ],
+    whenToSeekHelp: [
+      'Když je baterie téměř vybitá a potřebujete volat pomoc.',
+      'Když jste izolovaní a nemáte možnost dobít zařízení.',
+    ],
+  ),
+  EmergencyGuide(
+    id: 'no-water',
+    title: 'Není voda',
+    description: 'Základní postup při výpadku vody nebo nejisté kvalitě vody.',
+    priorityLevel: 'vysoká',
+    steps: [
+      EmergencyGuideStep(id: 'water-1', text: 'Zkontrolujte zásoby pitné vody v domácnosti.'),
+      EmergencyGuideStep(id: 'water-2', text: 'Používejte vodu přednostně na pití a léky.'),
+      EmergencyGuideStep(id: 'water-3', text: 'Oddělte čistou vodu od vody na mytí.'),
+      EmergencyGuideStep(id: 'water-4', text: 'Sledujte místní oznámení o cisternách nebo výdejních místech.'),
+      EmergencyGuideStep(id: 'water-5', text: 'Při pochybnostech vodu převařte, pokud máte bezpečný zdroj tepla.'),
+    ],
+    whatNotToDo: [
+      'Nepijte vodu se zápachem, zákalem nebo neznámým původem.',
+      'Neplýtvejte pitnou vodou na úklid.',
+      'Nenechávejte malé děti pít neověřenou vodu.',
+    ],
+    whenToSeekHelp: [
+      'Když nemáte pitnou vodu pro děti, seniory nebo nemocné osoby.',
+      'Když se objeví průjem, zvracení nebo známky dehydratace.',
+    ],
+  ),
+  EmergencyGuide(
+    id: 'medication',
+    title: 'Potřebuji léky',
+    description: 'Co dělat, když hrozí vynechání důležitých léků.',
+    priorityLevel: 'kritická',
+    steps: [
+      EmergencyGuideStep(id: 'meds-1', text: 'Spočítejte zásobu léků a dávek na nejbližší dny.'),
+      EmergencyGuideStep(id: 'meds-2', text: 'Zapište název léku, dávkování a alergie.'),
+      EmergencyGuideStep(id: 'meds-3', text: 'Kontaktujte nouzový kontakt nebo lékařskou pomoc, pokud lék dochází.'),
+      EmergencyGuideStep(id: 'meds-4', text: 'Léky udržujte v doporučené teplotě, pokud je to možné.'),
+      EmergencyGuideStep(id: 'meds-5', text: 'U inzulinu a jiných citlivých léků řešte chlazení přednostně.'),
+    ],
+    whatNotToDo: [
+      'Nevynechávejte zásadní léky bez konzultace, pokud existuje možnost pomoci.',
+      'Nesdílejte léky s jinými lidmi.',
+      'Neužívejte neoznačené nebo prošlé léky.',
+    ],
+    whenToSeekHelp: [
+      'Když jde o inzulin, léky na srdce, epilepsii, dýchání nebo srážlivost krve.',
+      'Když se zhorší stav po vynechání dávky.',
+    ],
+  ),
+  EmergencyGuide(
+    id: 'injury-health',
+    title: 'Zranění nebo zdravotní problém',
+    description: 'První kroky při úrazu nebo náhlém zhoršení zdraví.',
+    priorityLevel: 'kritická',
+    steps: [
+      EmergencyGuideStep(id: 'injury-1', text: 'Zajistěte bezpečí místa a přístup vzduchu.'),
+      EmergencyGuideStep(id: 'injury-2', text: 'Při silném krvácení tlačte přímo na ránu čistou látkou.'),
+      EmergencyGuideStep(id: 'injury-3', text: 'Při bezvědomí kontrolujte dýchání a volejte pomoc.'),
+      EmergencyGuideStep(id: 'injury-4', text: 'Udržujte zraněného v teple a klidu.'),
+      EmergencyGuideStep(id: 'injury-5', text: 'Zapište čas události, příznaky a podané léky.'),
+    ],
+    whatNotToDo: [
+      'Nehýbejte s člověkem po pádu, pokud hrozí poranění páteře.',
+      'Nedávejte jídlo ani pití osobě v bezvědomí.',
+      'Neodstraňujte hluboko zaseknutý předmět z rány.',
+    ],
+    whenToSeekHelp: [
+      'Okamžitě při bezvědomí, dušnosti, bolesti na hrudi nebo silném krvácení.',
+      'Při úrazu hlavy, popáleninách, zlomenině nebo zhoršování stavu.',
+    ],
+  ),
+  EmergencyGuide(
+    id: 'heating-fails',
+    title: 'Nefunguje topení v zimě',
+    description: 'Jak snížit riziko prochladnutí při výpadku topení.',
+    priorityLevel: 'vysoká',
+    steps: [
+      EmergencyGuideStep(id: 'heat-1', text: 'Soustaďte pobyt do jedné místnosti a zavřete dveře.'),
+      EmergencyGuideStep(id: 'heat-2', text: 'Oblečte více vrstev, čepici a teplé ponožky.'),
+      EmergencyGuideStep(id: 'heat-3', text: 'Zakryjte netěsnosti u oken látkou nebo dekou.'),
+      EmergencyGuideStep(id: 'heat-4', text: 'Pravidelně kontrolujte děti, seniory a nemocné osoby.'),
+      EmergencyGuideStep(id: 'heat-5', text: 'Používejte jen bezpečné zdroje tepla a větrejte podle potřeby.'),
+    ],
+    whatNotToDo: [
+      'Nepoužívejte gril, uhlí nebo spalovací vařič v uzavřené místnosti.',
+      'Nezakrývejte elektrické ani plynové topidlo látkou.',
+      'Nenechávejte svíčky bez dozoru.',
+    ],
+    whenToSeekHelp: [
+      'Když teplota doma rychle klesá a máte dítě, seniora nebo nemocnou osobu.',
+      'Při zmatenosti, třesu, ospalosti nebo podezření na otravu oxidem uhelnatým.',
+    ],
+  ),
+  EmergencyGuide(
+    id: 'food-safety',
+    title: 'Bezpečnost jídla',
+    description: 'Jak zacházet s jídlem bez elektřiny a chlazení.',
+    priorityLevel: 'střední',
+    steps: [
+      EmergencyGuideStep(id: 'food-1', text: 'Neotvírejte lednici a mrazák zbytečně často.'),
+      EmergencyGuideStep(id: 'food-2', text: 'Nejdříve spotřebujte čerstvé a rychle se kazící potraviny.'),
+      EmergencyGuideStep(id: 'food-3', text: 'Oddělte syrové maso od ostatních potravin.'),
+      EmergencyGuideStep(id: 'food-4', text: 'Jídlo se zápachem, plísní nebo nejasnou teplotou vyřaďte.'),
+      EmergencyGuideStep(id: 'food-5', text: 'Upřednostněte trvanlivé potraviny a čistou vodu.'),
+    ],
+    whatNotToDo: [
+      'Neochutnávejte podezřelé jídlo jen pro kontrolu.',
+      'Nekrmte děti rizikovými potravinami.',
+      'Neskladujte syrové maso u hotového jídla.',
+    ],
+    whenToSeekHelp: [
+      'Při otravě jídlem, opakovaném zvracení nebo dehydrataci.',
+      'Když nemáte bezpečné jídlo pro dítě, seniora nebo nemocnou osobu.',
+    ],
+  ),  EmergencyGuide(
+    id: 'card-payments',
+    title: 'Nefungují platby kartou',
+    description: 'Jak postupovat při výpadku terminálů, bankomatů nebo internetu.',
+    priorityLevel: 'střední',
+    steps: [
+      EmergencyGuideStep(id: 'pay-1', text: 'Zjistěte, kolik hotovosti máte k dispozici.'),
+      EmergencyGuideStep(id: 'pay-2', text: 'Upřednostněte nákup vody, léků, jídla a hygieny.'),
+      EmergencyGuideStep(id: 'pay-3', text: 'Domluvte se v domácnosti na jednom člověku pro nutné nákupy.'),
+      EmergencyGuideStep(id: 'pay-4', text: 'Uchovejte účtenky nebo jednoduchý písemný záznam domluvy.'),
+      EmergencyGuideStep(id: 'pay-5', text: 'Sledujte oznámení města nebo obchodů o náhradních platbách.'),
+    ],
+    whatNotToDo: [
+      'Nechoďte do davu jen kvůli nepodstatným nákupům.',
+      'Nesdělujte PIN ani údaje k účtu cizím lidem.',
+      'Neskupujte zásoby, které nepotřebujete.',
+    ],
+    whenToSeekHelp: [
+      'Když nemáte prostředky na vodu, léky nebo základní jídlo.',
+      'Když jste senior nebo pečujete o zranitelnou osobu a nemůžete nakoupit.',
+    ],
+  ),
+  EmergencyGuide(
+    id: 'public-transport',
+    title: 'Zastavená MHD',
+    description: 'Co dělat při výpadku tramvají, metra, autobusů nebo informací.',
+    priorityLevel: 'střední',
+    steps: [
+      EmergencyGuideStep(id: 'mhd-1', text: 'Zůstaňte v bezpečném místě mimo koleje a vozovku.'),
+      EmergencyGuideStep(id: 'mhd-2', text: 'Zhodnoťte, zda je lepší čekat, jít pěšky nebo vyhledat pomoc.'),
+      EmergencyGuideStep(id: 'mhd-3', text: 'Šetřete baterii a domluvte krátkou zprávou místo setkání.'),
+      EmergencyGuideStep(id: 'mhd-4', text: 'Vyhněte se tunelům, staveništím a tmavým neznámým trasám.'),
+      EmergencyGuideStep(id: 'mhd-5', text: 'Pomozte dětem, seniorům a lidem se sníženou pohyblivostí najít klidné místo.'),
+    ],
+    whatNotToDo: [
+      'Nevstupujte do kolejiště ani tunelů bez pokynu záchranných složek.',
+      'Nepřetěžujte telefon opakovanými hovory.',
+      'Nechoďte sami neosvětlenou trasou, pokud máte bezpečnější možnost.',
+    ],
+    whenToSeekHelp: [
+      'Když jste zranění, dezorientovaní nebo nemůžete pokračovat pěšky.',
+      'Když se ztratilo dítě nebo zranitelná osoba.',
+    ],
+  ),
+  EmergencyGuide(
+    id: 'elevator-metro',
+    title: 'Uvíznutí ve výtahu nebo metru',
+    description: 'Klidný postup při uvíznutí v uzavřeném prostoru.',
+    priorityLevel: 'kritická',
+    steps: [
+      EmergencyGuideStep(id: 'stuck-1', text: 'Zůstaňte v klidu a zjistěte, zda někdo potřebuje okamžitou pomoc.'),
+      EmergencyGuideStep(id: 'stuck-2', text: 'Použijte nouzové tlačítko, interkom nebo krátkou zprávu.'),
+      EmergencyGuideStep(id: 'stuck-3', text: 'Šetřete baterii a sdělte přesnou polohu, pokud ji znáte.'),
+      EmergencyGuideStep(id: 'stuck-4', text: 'Sedněte si, omezte pohyb a uvolněte prostor u dveří.'),
+      EmergencyGuideStep(id: 'stuck-5', text: 'Sledujte dýchání a stav lidí kolem sebe.'),
+    ],
+    whatNotToDo: [
+      'Nepokoušejte se násilně otevírat dveře výtahu nebo soupravy.',
+      'Nevystupujte do tunelu bez pokynu personálu nebo záchranářů.',
+      'Nezapalujte oheň ani svíčky v uzavřeném prostoru.',
+    ],
+    whenToSeekHelp: [
+      'Okamžitě při dušnosti, panice, zranění nebo bezvědomí.',
+      'Když je uvnitř dítě, senior, těhotná osoba nebo člověk s nemocí.',
+    ],
+  ),
+  EmergencyGuide(
+    id: 'family-communication',
+    title: 'Komunikace s rodinou',
+    description: 'Jednoduchý plán pro domluvu při přetížené síti.',
+    priorityLevel: 'vysoká',
+    steps: [
+      EmergencyGuideStep(id: 'family-1', text: 'Domluvte jedno hlavní místo setkání a jedno náhradní.'),
+      EmergencyGuideStep(id: 'family-2', text: 'Pošlete krátkou zprávu: stav, poloha, další krok.'),
+      EmergencyGuideStep(id: 'family-3', text: 'Určete jednu osobu mimo postiženou oblast jako kontaktní bod.'),
+      EmergencyGuideStep(id: 'family-4', text: 'Nepište dlouhé zprávy a neposílejte fotky, pokud síť selhává.'),
+      EmergencyGuideStep(id: 'family-5', text: 'Pravidelně kontrolujte dohodnuté místo nebo čas další zprávy.'),
+    ],
+    whatNotToDo: [
+      'Nevolejte opakovaně, pokud stačí krátká zpráva.',
+      'Nepředávejte neověřené poplašné informace.',
+      'Nedomlouvejte mnoho míst setkání najednou.',
+    ],
+    whenToSeekHelp: [
+      'Když se nemůžete spojit s dítětem, seniorem nebo nemocnou osobou.',
+      'Když někdo v rodině potřebuje léky, vodu nebo zdravotní pomoc.',
+    ],
+  ),
+  EmergencyGuide(
+    id: 'helping-seniors',
+    title: 'Pomoc seniorům',
+    description: 'Jak bezpečně podpořit starší lidi během výpadku.',
+    priorityLevel: 'vysoká',
+    steps: [
+      EmergencyGuideStep(id: 'senior-1', text: 'Zeptejte se na vodu, léky, teplo, světlo a možnost kontaktu.'),
+      EmergencyGuideStep(id: 'senior-2', text: 'Pomozte zapsat důležité kontakty a léky na papír.'),
+      EmergencyGuideStep(id: 'senior-3', text: 'Zkontrolujte riziko pádu, tmu na chodbě a studený byt.'),
+      EmergencyGuideStep(id: 'senior-4', text: 'Nabídněte doprovod, ale respektujte souhlas a soukromí.'),
+      EmergencyGuideStep(id: 'senior-5', text: 'Při vážném riziku kontaktujte rodinu, sousedy nebo záchranné složky.'),
+    ],
+    whatNotToDo: [
+      'Nevstupujte do bytu bez souhlasu, pokud nejde o bezprostřední ohrožení.',
+      'Nepřebírejte peníze nebo doklady bez jasné domluvy.',
+      'Neslibujte pomoc, kterou nemůžete splnit.',
+    ],
+    whenToSeekHelp: [
+      'Při zmatenosti, pádu, dušnosti, bolesti na hrudi nebo podchlazení.',
+      'Když senior nemá vodu, léky nebo bezpečné teplo.',
+    ],
+  ),
+  EmergencyGuide(
+    id: 'safe-volunteering',
+    title: 'Bezpečné dobrovolnictví',
+    description: 'Jak pomáhat tak, aby pomoc byla užitečná a bezpečná.',
+    priorityLevel: 'střední',
+    steps: [
+      EmergencyGuideStep(id: 'vol-1', text: 'Nejdříve zajistěte sebe, rodinu a základní zásoby.'),
+      EmergencyGuideStep(id: 'vol-2', text: 'Pomáhejte ve dvojici nebo skupině, pokud je to možné.'),
+      EmergencyGuideStep(id: 'vol-3', text: 'Noste viditelné oblečení, světlo a základní lékárničku.'),
+      EmergencyGuideStep(id: 'vol-4', text: 'Předávejte jen ověřené informace a držte se pokynů města nebo složek IZS.'),
+      EmergencyGuideStep(id: 'vol-5', text: 'Zapisujte žádosti o pomoc stručně: místo, potřeba, čas, kontakt.'),
+    ],
+    whatNotToDo: [
+      'Nevstupujte do nebezpečných budov, tunelů nebo uzavřených prostor.',
+      'Nešiřte poplašné zprávy a nepotvrzené seznamy potřeb.',
+      'Nepřetěžujte záchranné složky neurgentními dotazy.',
+    ],
+    whenToSeekHelp: [
+      'Když narazíte na zranění, požár, únik plynu nebo násilí.',
+      'Když je žádost o pomoc nad vaše schopnosti nebo vybavení.',
+    ],
+  ),
+];
