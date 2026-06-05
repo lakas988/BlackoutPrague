@@ -55,6 +55,7 @@ class MessageService extends ChangeNotifier {
     required String text,
     required EmergencyMessagePriority priority,
     int ttlMinutes = 60,
+    bool isCustomTextMessage = false,
   }) async {
     await loadMessages();
     final areaName = await _currentAreaName();
@@ -74,6 +75,7 @@ class MessageService extends ChangeNotifier {
       verifiedCount: 0,
       isOutgoing: true,
       isOutdated: false,
+      isCustomTextMessage: isCustomTextMessage,
     );
     await _addMessage(message);
     return message;
@@ -106,6 +108,7 @@ class MessageService extends ChangeNotifier {
       verifiedCount: verifiedCount,
       isOutgoing: false,
       isOutdated: false,
+      isCustomTextMessage: false,
     );
     await _addMessage(message);
     return message;
@@ -134,6 +137,7 @@ class MessageService extends ChangeNotifier {
         verifiedCount: 1,
         isOutgoing: false,
         isOutdated: false,
+        isCustomTextMessage: false,
       ),
       EmergencyMessage(
         id: 'demo_charge_${now.microsecondsSinceEpoch}',
@@ -150,6 +154,7 @@ class MessageService extends ChangeNotifier {
         verifiedCount: 2,
         isOutgoing: false,
         isOutdated: false,
+        isCustomTextMessage: false,
       ),
       EmergencyMessage(
         id: 'demo_crossing_${now.microsecondsSinceEpoch}',
@@ -166,6 +171,7 @@ class MessageService extends ChangeNotifier {
         verifiedCount: 1,
         isOutgoing: false,
         isOutdated: false,
+        isCustomTextMessage: false,
       ),
       EmergencyMessage(
         id: 'demo_meds_${now.microsecondsSinceEpoch}',
@@ -182,6 +188,7 @@ class MessageService extends ChangeNotifier {
         verifiedCount: 0,
         isOutgoing: false,
         isOutdated: false,
+        isCustomTextMessage: false,
       ),
     ];
 

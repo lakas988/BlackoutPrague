@@ -189,7 +189,7 @@ class RealBleMeshService extends ChangeNotifier {
       await _peripheral.start(
         advertiseData: AdvertiseData(
           manufacturerId: _manufacturerId,
-          manufacturerData: Uint8List.fromList(ascii.encode(payload)),
+          manufacturerData: Uint8List.fromList(utf8.encode(payload)),
           includeDeviceName: false,
         ),
       );
@@ -279,7 +279,7 @@ class RealBleMeshService extends ChangeNotifier {
       id: parsed.messageId,
       originDeviceId: parsed.originDeviceId,
       type: parsed.type,
-      text: _incomingText(parsed.type),
+      text: parsed.text ?? _incomingText(parsed.type),
       createdAt: parsed.createdAt,
       senderAlias: 'BLE uzel',
       approximateArea: parsed.areaName,
@@ -290,6 +290,7 @@ class RealBleMeshService extends ChangeNotifier {
       verifiedCount: 0,
       isOutgoing: false,
       isOutdated: false,
+      isCustomTextMessage: parsed.isCustomTextMessage,
     );
 
     if (message.isExpired) {
@@ -326,7 +327,7 @@ class RealBleMeshService extends ChangeNotifier {
 
   String? _decodePayload(List<int> data) {
     try {
-      final payload = ascii.decode(data, allowInvalid: false);
+      final payload = utf8.decode(data, allowMalformed: false);
       return payload.startsWith('BP|') ? payload : null;
     } catch (_) {
       return null;
@@ -334,14 +335,27 @@ class RealBleMeshService extends ChangeNotifier {
   }
 
   String _encodeMessage(EmergencyMessage message) {
-    final type = _protocolType(message.type);
+    final type = message.isCustomTextMessage ? 'TXT' : _protocolType(message.type);
     final area = _areaCode(message.approximateArea);
     final time = _timeCode(message.createdAt);
     final origin = _compactToken(message.originDeviceId, fallback: 'DX');
     final messageId = _compactToken(message.id, fallback: 'MSG');
     final hop = message.hopCount.clamp(0, message.maxHops);
     final max = message.maxHops.clamp(1, 9);
+    if (message.isCustomTextMessage) {
+      final customText = _payloadText(message.text);
+      return 'BP|$type|$area|$time|$origin|$messageId|$hop|$max|$customText';
+    }
     return 'BP|$type|$area|$time|$origin|$messageId|$hop|$max';
+  }
+
+  String _payloadText(String value) {
+    final clean = value.replaceAll('|', '/').replaceAll(RegExp(r'\s+'), ' ').trim();
+    final runes = clean.runes.toList(growable: false);
+    if (runes.length <= 40) {
+      return clean;
+    }
+    return String.fromCharCodes(runes.take(40));
   }
 
   String _compactToken(String value, {required String fallback}) {
@@ -480,6 +494,8 @@ class _ParsedBleMessage {
     required this.messageId,
     required this.hopCount,
     required this.maxHops,
+    required this.isCustomTextMessage,
+    this.text,
   });
 
   final EmergencyMessageType type;
@@ -489,6 +505,8 @@ class _ParsedBleMessage {
   final String messageId;
   final int hopCount;
   final int maxHops;
+  final bool isCustomTextMessage;
+  final String? text;
 
   static _ParsedBleMessage? tryParse(String payload) {
     final parts = payload.split('|');
@@ -496,7 +514,7 @@ class _ParsedBleMessage {
       return null;
     }
 
-    if (parts.length == 8) {
+    if (parts.length == 8 || parts.length == 9) {
       return _parseCurrent(parts);
     }
 
@@ -508,6 +526,7 @@ class _ParsedBleMessage {
   }
 
   static _ParsedBleMessage? _parseCurrent(List<String> parts) {
+    final isTextMessage = parts[1] == 'TXT';
     final type = _typeFromProtocol(parts[1]);
     final createdAt = _createdAtFromTimeCode(parts[3]);
     final hopCount = int.tryParse(parts[6]);
@@ -524,6 +543,8 @@ class _ParsedBleMessage {
       messageId: parts[5].toUpperCase(),
       hopCount: hopCount,
       maxHops: maxHops,
+      isCustomTextMessage: isTextMessage,
+      text: isTextMessage && parts.length == 9 ? parts[8] : null,
     );
   }
 
@@ -543,6 +564,7 @@ class _ParsedBleMessage {
       messageId: parts[4].toUpperCase(),
       hopCount: hopCount,
       maxHops: 5,
+      isCustomTextMessage: false,
     );
   }
 
@@ -555,6 +577,7 @@ class _ParsedBleMessage {
       'MEDS' => EmergencyMessageType.medication,
       'DANGER' => EmergencyMessageType.danger,
       'INFO' => EmergencyMessageType.info,
+      'TXT' => EmergencyMessageType.info,
       _ => null,
     };
   }

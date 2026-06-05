@@ -83,6 +83,7 @@ class EmergencyMessage {
     required this.verifiedCount,
     required this.isOutgoing,
     required this.isOutdated,
+    this.isCustomTextMessage = false,
   });
 
   factory EmergencyMessage.fromJson(Map<String, dynamic> json) {
@@ -101,6 +102,7 @@ class EmergencyMessage {
       verifiedCount: json['verifiedCount'] as int? ?? 0,
       isOutgoing: json['isOutgoing'] as bool? ?? false,
       isOutdated: json['isOutdated'] as bool? ?? false,
+      isCustomTextMessage: json['isCustomTextMessage'] as bool? ?? false,
     );
   }
 
@@ -118,6 +120,7 @@ class EmergencyMessage {
   final int verifiedCount;
   final bool isOutgoing;
   final bool isOutdated;
+  final bool isCustomTextMessage;
 
   bool get isExpired => DateTime.now().difference(createdAt).inMinutes >= ttlMinutes;
   bool get isDemo => id.startsWith('demo_');
@@ -139,6 +142,7 @@ class EmergencyMessage {
       'verifiedCount': verifiedCount,
       'isOutgoing': isOutgoing,
       'isOutdated': isOutdated,
+      'isCustomTextMessage': isCustomTextMessage,
     };
   }
 
@@ -147,6 +151,7 @@ class EmergencyMessage {
     int? maxHops,
     int? verifiedCount,
     bool? isOutdated,
+    bool? isCustomTextMessage,
   }) {
     return EmergencyMessage(
       id: id,
@@ -163,6 +168,7 @@ class EmergencyMessage {
       verifiedCount: verifiedCount ?? this.verifiedCount,
       isOutgoing: isOutgoing,
       isOutdated: isOutdated ?? this.isOutdated,
+      isCustomTextMessage: isCustomTextMessage ?? this.isCustomTextMessage,
     );
   }
 }
