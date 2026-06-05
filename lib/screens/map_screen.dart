@@ -78,10 +78,7 @@ class _MapScreenState extends State<MapScreen> {
             'Poloha se používá jen jednorázově kvůli úspoře baterie.',
             style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: const Color(0xFFD6D9DE)),
           ),
-          const SizedBox(height: 12),
-          _MapModeSelector(mode: _mapMode, onChanged: _setMapMode),
-          const SizedBox(height: 12),
-          _MapModeNotice(mode: _mapMode),
+
           const SizedBox(height: 12),
           _LocationControlCard(
             selectedArea: _selectedArea,
@@ -95,6 +92,10 @@ class _MapScreenState extends State<MapScreen> {
           const SizedBox(height: 12),
           _MapFilters(selectedType: _selectedType, onSelected: (type) => setState(() => _selectedType = type)),
           const SizedBox(height: 12),
+          _MapModeSelector(mode: _mapMode, onChanged: _setMapMode),
+          const SizedBox(height: 8),
+          _MapModeNotice(mode: _mapMode),
+          const SizedBox(height: 10),
           SizedBox(
             height: 430,
             child: ClipRRect(
@@ -595,8 +596,8 @@ class _MapModeSelector extends StatelessWidget {
   Widget build(BuildContext context) {
     return SegmentedButton<MapMode>(
       segments: const [
-        ButtonSegment(value: MapMode.onlineTiles, icon: Icon(Icons.public_outlined), label: Text('Online mapa')),
-        ButtonSegment(value: MapMode.offlineMap, icon: Icon(Icons.offline_bolt_outlined), label: Text('Offline mapa')),
+        ButtonSegment(value: MapMode.onlineTiles, icon: Icon(Icons.public_outlined), label: Text('Online')),
+        ButtonSegment(value: MapMode.offlineMap, icon: Icon(Icons.offline_bolt_outlined), label: Text('Offline')),
       ],
       selected: {mode},
       onSelectionChanged: (selection) => onChanged(selection.first),
@@ -614,7 +615,7 @@ class _MapModeNotice extends StatelessWidget {
     return Card(
       color: mode == MapMode.offlineMap ? const Color(0xFF3A2E12) : const Color(0xFF101820),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         child: Text(mode.czechDescription, style: Theme.of(context).textTheme.bodyMedium),
       ),
     );

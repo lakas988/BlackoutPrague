@@ -343,20 +343,47 @@ class _PowerModeSelector extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(14),
+        padding: const EdgeInsets.all(12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Nouzový režim baterie', style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: 12),
-            SegmentedButton<AppPowerMode>(
-              segments: const [
-                ButtonSegment(value: AppPowerMode.normal, label: Text('Normální'), icon: Icon(Icons.dashboard_outlined)),
-                ButtonSegment(value: AppPowerMode.batterySaver, label: Text('Úsporný'), icon: Icon(Icons.battery_saver_outlined)),
-                ButtonSegment(value: AppPowerMode.ultra, label: Text('Ultra'), icon: Icon(Icons.flash_off_outlined)),
+            Text('Režim baterie', style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(
+                  child: _PowerModeTile(
+                    mode: AppPowerMode.normal,
+                    selectedMode: selectedMode,
+                    isEnabled: isEnabled,
+                    icon: Icons.power_settings_new_outlined,
+                    label: 'Normální',
+                    onChanged: onChanged,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _PowerModeTile(
+                    mode: AppPowerMode.batterySaver,
+                    selectedMode: selectedMode,
+                    isEnabled: isEnabled,
+                    icon: Icons.battery_saver_outlined,
+                    label: 'Úsporný',
+                    onChanged: onChanged,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _PowerModeTile(
+                    mode: AppPowerMode.ultra,
+                    selectedMode: selectedMode,
+                    isEnabled: isEnabled,
+                    icon: Icons.offline_bolt_outlined,
+                    label: 'Ultra',
+                    onChanged: onChanged,
+                  ),
+                ),
               ],
-              selected: {selectedMode},
-              onSelectionChanged: isEnabled ? (selection) => onChanged(selection.first) : null,
             ),
           ],
         ),
@@ -365,6 +392,57 @@ class _PowerModeSelector extends StatelessWidget {
   }
 }
 
+class _PowerModeTile extends StatelessWidget {
+  const _PowerModeTile({
+    required this.mode,
+    required this.selectedMode,
+    required this.isEnabled,
+    required this.icon,
+    required this.label,
+    required this.onChanged,
+  });
+
+  final AppPowerMode mode;
+  final AppPowerMode selectedMode;
+  final bool isEnabled;
+  final IconData icon;
+  final String label;
+  final ValueChanged<AppPowerMode> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final selected = mode == selectedMode;
+    return InkWell(
+      borderRadius: BorderRadius.circular(8),
+      onTap: isEnabled ? () => onChanged(mode) : null,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: selected ? const Color(0xFFFFD166) : const Color(0xFF18202A),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: selected ? const Color(0xFFFFD166) : const Color(0xFF2D3748)),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+          child: Column(
+            children: [
+              Icon(icon, color: selected ? const Color(0xFF111318) : const Color(0xFFFFD166), size: 24),
+              const SizedBox(height: 6),
+              Text(
+                label,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: selected ? const Color(0xFF111318) : Colors.white,
+                  fontWeight: FontWeight.w900,
+                  fontSize: 12,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
 class _ModeMessage extends StatelessWidget {
   const _ModeMessage({required this.mode});
 
@@ -423,33 +501,33 @@ class _SosButton extends StatelessWidget {
   final VoidCallback onPressed;
 @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 124,
-      child: FilledButton(
-        style: FilledButton.styleFrom(
-          backgroundColor: const Color(0xFFB91C1C),
-          foregroundColor: Colors.white,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
-        ),
-        onPressed: onPressed,
-        child: const Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.warning_amber_rounded, size: 42),
-            SizedBox(width: 16),
-            Column(
+    return Column(
+      children: [
+        SizedBox(
+          width: 164,
+          height: 164,
+          child: FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: const Color(0xFFB91C1C),
+              foregroundColor: Colors.white,
+              shape: const CircleBorder(),
+              padding: EdgeInsets.zero,
+              elevation: 3,
+            ),
+            onPressed: onPressed,
+            child: const Column(
               mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('SOS', style: TextStyle(fontSize: 40, fontWeight: FontWeight.w900, letterSpacing: 0)),
-                SizedBox(height: 2),
-                Text('Vytvořit nouzovou zprávu', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
+                Icon(Icons.warning_amber_rounded, size: 42),
+                SizedBox(height: 4),
+                Text('SOS', style: TextStyle(fontSize: 42, fontWeight: FontWeight.w900, letterSpacing: 0)),
               ],
             ),
-          ],
+          ),
         ),
-      ),
+        const SizedBox(height: 10),
+        const Text('Vytvořit nouzovou zprávu', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: Color(0xFFFFFFFF))),
+      ],
     );
   }
 }

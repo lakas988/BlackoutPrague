@@ -113,8 +113,7 @@ class _GuideScreenState extends State<GuideScreen> {
       final matchesSelected = _selectedGuideId == null || guide.id == _selectedGuideId;
       final matchesQuery = normalizedQuery.isEmpty ||
           guide.title.toLowerCase().contains(normalizedQuery) ||
-          guide.description.toLowerCase().contains(normalizedQuery) ||
-          guide.priorityLevel.toLowerCase().contains(normalizedQuery);
+          guide.description.toLowerCase().contains(normalizedQuery);
       return matchesSelected && matchesQuery;
     }).toList();
   }
@@ -236,13 +235,13 @@ class _GuideCard extends StatelessWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 12),
               Row(
                 children: [
-                  _PriorityBadge(priority: guide.priorityLevel),
-                  const Spacer(),
-                  Text('$checkedCount / ${guide.steps.length} kroků'),
+                  const Icon(Icons.checklist_outlined, size: 20, color: Color(0xFFFFD166)),
                   const SizedBox(width: 8),
+                  Text('$checkedCount / ${guide.steps.length} kroků'),
+                  const Spacer(),
                   const Icon(Icons.chevron_right),
                 ],
               ),
@@ -251,38 +250,6 @@ class _GuideCard extends StatelessWidget {
         ),
       ),
     );
-  }
-}
-
-class _PriorityBadge extends StatelessWidget {
-  const _PriorityBadge({required this.priority});
-
-  final String priority;
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: _priorityColor(priority),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        child: Text(
-          'Priorita: $priority',
-          style: const TextStyle(fontWeight: FontWeight.w800, color: Colors.white),
-        ),
-      ),
-    );
-  }
-
-  Color _priorityColor(String priority) {
-    return switch (priority) {
-      'kritická' => const Color(0xFF991B1B),
-      'vysoká' => const Color(0xFFB45309),
-      'střední' => const Color(0xFF1D4ED8),
-      _ => const Color(0xFF166534),
-    };
   }
 }
 
@@ -337,8 +304,6 @@ class _GuideDetailScreenState extends State<GuideDetailScreen> {
             Text(guide.title, style: Theme.of(context).textTheme.headlineMedium),
             const SizedBox(height: 10),
             Text(guide.description, style: Theme.of(context).textTheme.bodyLarge),
-            const SizedBox(height: 14),
-            Align(alignment: Alignment.centerLeft, child: _PriorityBadge(priority: guide.priorityLevel)),
             const SizedBox(height: 22),
             Text('Kontrolní kroky', style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: 10),

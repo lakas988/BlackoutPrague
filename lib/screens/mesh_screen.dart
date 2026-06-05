@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -7,6 +7,12 @@ import '../models/emergency_message.dart';
 import '../services/demo_mode_service.dart';
 import '../services/message_service.dart';
 import '../services/real_ble_mesh_service.dart';
+
+enum _MessageSection {
+  incoming,
+  outgoing,
+  all,
+}
 
 class MeshScreen extends StatefulWidget {
   const MeshScreen({super.key});
@@ -25,6 +31,7 @@ class _MeshScreenState extends State<MeshScreen> {
   bool _isSimulationActive = false;
   bool _isDemoModeEnabled = false;
   int _nearbyNodeCount = 0;
+  _MessageSection _selectedSection = _MessageSection.incoming;
 
   @override
   void initState() {
@@ -46,8 +53,9 @@ class _MeshScreenState extends State<MeshScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final outgoingMessages = _visibleMessages(_messageService.outgoingMessages);
     final incomingMessages = _visibleMessages(_messageService.incomingMessages);
+    final outgoingMessages = _visibleMessages(_messageService.outgoingMessages);
+    final selectedMessages = _messagesForSelectedSection(incomingMessages, outgoingMessages);
 
     return SafeArea(
       child: ListView(
@@ -59,9 +67,9 @@ class _MeshScreenState extends State<MeshScreen> {
             'Reálný Bluetooth mesh předává krátké krizové zprávy mezi zařízeními bez internetu.',
             style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: const Color(0xFFD6D9DE)),
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 16),
           const _SectionTitle(title: 'Stav sítě'),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           _RealBleStatusCard(
             isEnabled: _realBleMeshService.isEnabled,
             permissionStatus: _realBleMeshService.permissionStatus,
@@ -70,9 +78,9 @@ class _MeshScreenState extends State<MeshScreen> {
             receivedCount: _realBleMeshService.receivedCount,
             lastError: _realBleMeshService.lastError,
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
           SizedBox(
-            height: 56,
+            height: 52,
             child: FilledButton.icon(
               onPressed: _toggleRealBle,
               icon: Icon(_realBleMeshService.isEnabled ? Icons.bluetooth_disabled_outlined : Icons.bluetooth_searching_outlined),
@@ -87,9 +95,9 @@ class _MeshScreenState extends State<MeshScreen> {
             ),
           ],
           if (_isDemoModeEnabled) ...[
-            const SizedBox(height: 22),
-            const _SectionTitle(title: 'Demo simulace'),
-            const SizedBox(height: 10),
+            const SizedBox(height: 18),
+            const _SectionTitle(title: 'Simulace mesh'),
+            const SizedBox(height: 8),
             _DemoSimulationCard(
               isSimulationActive: _isSimulationActive,
               nearbyNodeCount: _nearbyNodeCount,
@@ -97,43 +105,23 @@ class _MeshScreenState extends State<MeshScreen> {
               onToggle: _toggleSimulation,
             ),
           ],
-          const SizedBox(height: 24),
-          const _SectionTitle(title: 'Odeslané zprávy'),
-          const SizedBox(height: 10),
-          if (outgoingMessages.isEmpty)
-            const _EmptyMessagesCard(text: 'Zatím nejsou žádné odeslané zprávy.')
-          else
-            for (final message in outgoingMessages) ...[
-              _MessageCard(
-                message: message,
-                onConfirm: () => _confirmMessage(message),
-                onRelay: () => _relayMessage(message),
-                onMarkOutdated: () => _markMessageOutdated(message),
-              ),
-              const SizedBox(height: 12),
-            ],
-          const SizedBox(height: 12),
-          _SectionTitle(
-            title: 'Přijaté zprávy',
-            action: incomingMessages.isEmpty
-                ? null
-                : TextButton.icon(
-                    onPressed: () => _confirmDeleteAllIncoming(incomingMessages),
-                    icon: const Icon(Icons.delete_sweep_outlined),
-                    label: const Text('Smazat vše'),
-                  ),
+          const SizedBox(height: 20),
+          _MessageSectionHeader(
+            selectedSection: _selectedSection,
+            onSectionChanged: (section) => setState(() => _selectedSection = section),
+            onDeleteAll: _deleteAllActionForSelectedSection(incomingMessages, outgoingMessages),
           ),
-          const SizedBox(height: 10),
-          if (incomingMessages.isEmpty)
-            const _EmptyMessagesCard(text: 'Zatím nejsou žádné přijaté zprávy.')
+          const SizedBox(height: 12),
+          if (selectedMessages.isEmpty)
+            _EmptyMessagesCard(text: _emptyTextForSelectedSection())
           else
-            for (final message in incomingMessages) ...[
+            for (final message in selectedMessages) ...[
               _MessageCard(
                 message: message,
                 onConfirm: () => _confirmMessage(message),
                 onRelay: () => _relayMessage(message),
                 onMarkOutdated: () => _markMessageOutdated(message),
-                onDelete: () => _confirmDeleteMessage(message),
+                onDelete: () => message.isOutgoing ? _confirmDeleteOutgoingMessage(message) : _confirmDeleteIncomingMessage(message),
               ),
               const SizedBox(height: 12),
             ],
@@ -184,6 +172,36 @@ class _MeshScreenState extends State<MeshScreen> {
       return messages;
     }
     return messages.where((message) => !message.isDemo).toList(growable: false);
+  }
+
+  List<EmergencyMessage> _messagesForSelectedSection(
+    List<EmergencyMessage> incomingMessages,
+    List<EmergencyMessage> outgoingMessages,
+  ) {
+    return switch (_selectedSection) {
+      _MessageSection.incoming => incomingMessages,
+      _MessageSection.outgoing => outgoingMessages,
+      _MessageSection.all => [...incomingMessages, ...outgoingMessages]..sort((a, b) => b.createdAt.compareTo(a.createdAt)),
+    };
+  }
+
+  String _emptyTextForSelectedSection() {
+    return switch (_selectedSection) {
+      _MessageSection.incoming => 'Zatím nejsou žádné přijaté zprávy.',
+      _MessageSection.outgoing => 'Zatím nejsou žádné odeslané zprávy.',
+      _MessageSection.all => 'Zatím nejsou žádné zprávy.',
+    };
+  }
+
+  VoidCallback? _deleteAllActionForSelectedSection(
+    List<EmergencyMessage> incomingMessages,
+    List<EmergencyMessage> outgoingMessages,
+  ) {
+    return switch (_selectedSection) {
+      _MessageSection.incoming => incomingMessages.isEmpty ? null : () => _confirmDeleteAllIncoming(incomingMessages),
+      _MessageSection.outgoing => outgoingMessages.isEmpty ? null : () => _confirmDeleteAllOutgoing(outgoingMessages),
+      _MessageSection.all => null,
+    };
   }
 
   void _refreshMessages() {
@@ -315,12 +333,35 @@ class _MeshScreenState extends State<MeshScreen> {
     _showSnackBar('Zpráva byla označena jako neaktuální.');
   }
 
-  Future<void> _confirmDeleteMessage(EmergencyMessage message) async {
+  Future<void> _confirmDeleteIncomingMessage(EmergencyMessage message) async {
+    await _confirmDeleteMessage(
+      message: message,
+      title: 'Smazat přijatou zprávu',
+      question: 'Opravdu chcete smazat tuto zprávu?',
+      successMessage: 'Přijatá zpráva byla smazána.',
+    );
+  }
+
+  Future<void> _confirmDeleteOutgoingMessage(EmergencyMessage message) async {
+    await _confirmDeleteMessage(
+      message: message,
+      title: 'Smazat odeslanou zprávu',
+      question: 'Opravdu chcete smazat tuto odeslanou zprávu?',
+      successMessage: 'Odeslaná zpráva byla smazána.',
+    );
+  }
+
+  Future<void> _confirmDeleteMessage({
+    required EmergencyMessage message,
+    required String title,
+    required String question,
+    required String successMessage,
+  }) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Smazat zprávu'),
-        content: const Text('Opravdu chcete smazat tuto zprávu?'),
+        title: Text(title),
+        content: Text(question),
         actions: [
           TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Zrušit')),
           FilledButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('Smazat')),
@@ -333,15 +374,38 @@ class _MeshScreenState extends State<MeshScreen> {
     }
 
     await _messageService.deleteMessage(message.id);
-    _showSnackBar('Zpráva byla smazána.');
+    _showSnackBar(successMessage);
   }
 
   Future<void> _confirmDeleteAllIncoming(List<EmergencyMessage> incomingMessages) async {
+    await _confirmDeleteMessages(
+      messages: incomingMessages,
+      title: 'Smazat přijaté zprávy',
+      question: 'Opravdu chcete smazat všechny přijaté zprávy?',
+      successMessage: 'Přijaté zprávy byly smazány.',
+    );
+  }
+
+  Future<void> _confirmDeleteAllOutgoing(List<EmergencyMessage> outgoingMessages) async {
+    await _confirmDeleteMessages(
+      messages: outgoingMessages,
+      title: 'Smazat odeslané zprávy',
+      question: 'Opravdu chcete smazat všechny odeslané zprávy?',
+      successMessage: 'Odeslané zprávy byly smazány.',
+    );
+  }
+
+  Future<void> _confirmDeleteMessages({
+    required List<EmergencyMessage> messages,
+    required String title,
+    required String question,
+    required String successMessage,
+  }) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Smazat přijaté zprávy'),
-        content: const Text('Opravdu chcete smazat všechny přijaté zprávy?'),
+        title: Text(title),
+        content: Text(question),
         actions: [
           TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Zrušit')),
           FilledButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('Smazat vše')),
@@ -353,8 +417,8 @@ class _MeshScreenState extends State<MeshScreen> {
       return;
     }
 
-    await _messageService.deleteMessagesById(incomingMessages.map((message) => message.id).toSet());
-    _showSnackBar('Přijaté zprávy byly smazány.');
+    await _messageService.deleteMessagesById(messages.map((message) => message.id).toSet());
+    _showSnackBar(successMessage);
   }
 
   void _showSnackBar(String message) {
@@ -366,17 +430,52 @@ class _MeshScreenState extends State<MeshScreen> {
 }
 
 class _SectionTitle extends StatelessWidget {
-  const _SectionTitle({required this.title, this.action});
+  const _SectionTitle({required this.title});
 
   final String title;
-  final Widget? action;
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    return Text(title, style: Theme.of(context).textTheme.titleLarge);
+  }
+}
+
+class _MessageSectionHeader extends StatelessWidget {
+  const _MessageSectionHeader({
+    required this.selectedSection,
+    required this.onSectionChanged,
+    required this.onDeleteAll,
+  });
+
+  final _MessageSection selectedSection;
+  final ValueChanged<_MessageSection> onSectionChanged;
+  final VoidCallback? onDeleteAll;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Expanded(child: Text(title, style: Theme.of(context).textTheme.titleLarge)),
-        ?action,
+        SegmentedButton<_MessageSection>(
+          segments: const [
+            ButtonSegment(value: _MessageSection.incoming, label: Text('Přijaté'), icon: Icon(Icons.south_west_outlined)),
+            ButtonSegment(value: _MessageSection.outgoing, label: Text('Odeslané'), icon: Icon(Icons.north_east_outlined)),
+            ButtonSegment(value: _MessageSection.all, label: Text('Všechny'), icon: Icon(Icons.forum_outlined)),
+          ],
+          selected: {selectedSection},
+          onSelectionChanged: (selection) => onSectionChanged(selection.first),
+        ),
+        if (onDeleteAll != null) ...[
+          const SizedBox(height: 8),
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton.icon(
+              onPressed: onDeleteAll,
+              icon: const Icon(Icons.delete_sweep_outlined),
+              label: const Text('Smazat vše'),
+            ),
+          ),
+        ],
       ],
     );
   }
@@ -403,24 +502,24 @@ class _RealBleStatusCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(18),
+        padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                Icon(isEnabled ? Icons.bluetooth_connected_outlined : Icons.bluetooth_outlined, color: const Color(0xFFFFD166), size: 30),
+                Icon(isEnabled ? Icons.bluetooth_connected_outlined : Icons.bluetooth_outlined, color: const Color(0xFFFFD166), size: 28),
                 const SizedBox(width: 12),
                 Expanded(child: Text(isEnabled ? 'Reálný Bluetooth mesh je zapnutý' : 'Reálný Bluetooth mesh je vypnutý', style: Theme.of(context).textTheme.titleMedium)),
               ],
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 10),
             _StatusLine(label: 'Oprávnění', value: permissionStatus),
             _StatusLine(label: 'Příjem zpráv', value: isScanning ? 'aktivní' : 'neaktivní'),
             _StatusLine(label: 'Odesílání', value: isAdvertising ? 'aktivní' : 'neaktivní'),
             _StatusLine(label: 'Přijaté zprávy', value: '$receivedCount'),
             if (lastError != null) ...[
-              const SizedBox(height: 8),
+              const SizedBox(height: 6),
               Text(lastError!, style: const TextStyle(color: Color(0xFFFFD166), fontWeight: FontWeight.w800)),
             ],
           ],
@@ -448,27 +547,24 @@ class _DemoSimulationCard extends StatelessWidget {
     return Card(
       color: const Color(0xFF3A1B1B),
       child: Padding(
-        padding: const EdgeInsets.all(18),
+        padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                const Icon(Icons.science_outlined, color: Colors.white, size: 30),
+                const Icon(Icons.science_outlined, color: Colors.white, size: 28),
                 const SizedBox(width: 12),
                 Expanded(child: Text('Simulace mesh', style: Theme.of(context).textTheme.titleMedium)),
               ],
             ),
             const SizedBox(height: 8),
-            Text(
-              'Demo režim zapíná ukázková data a simulované zprávy pro prezentaci.',
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
-            const SizedBox(height: 14),
+            Text('Demo režim zapíná ukázková data a simulované zprávy pro prezentaci.', style: Theme.of(context).textTheme.bodyMedium),
+            const SizedBox(height: 12),
             _StatusLine(label: 'Stav', value: isSimulationActive ? 'aktivní' : 'neaktivní'),
             _StatusLine(label: 'Ukázkové okolní uzly', value: '$nearbyNodeCount'),
             _StatusLine(label: 'Demo přijaté zprávy', value: '$incomingCount'),
-            const SizedBox(height: 12),
+            const SizedBox(height: 10),
             SizedBox(
               width: double.infinity,
               child: OutlinedButton.icon(
@@ -513,7 +609,7 @@ class _EmptyMessagesCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(18),
+        padding: const EdgeInsets.all(16),
         child: Text(text, style: Theme.of(context).textTheme.bodyLarge),
       ),
     );
@@ -526,14 +622,14 @@ class _MessageCard extends StatelessWidget {
     required this.onConfirm,
     required this.onRelay,
     required this.onMarkOutdated,
-    this.onDelete,
+    required this.onDelete,
   });
 
   final EmergencyMessage message;
   final VoidCallback onConfirm;
   final VoidCallback onRelay;
   final VoidCallback onMarkOutdated;
-  final VoidCallback? onDelete;
+  final VoidCallback onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -550,7 +646,7 @@ class _MessageCard extends StatelessWidget {
       child: Card(
         color: cardColor,
         child: Padding(
-          padding: const EdgeInsets.all(18),
+          padding: const EdgeInsets.all(16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -583,12 +679,12 @@ class _MessageCard extends StatelessWidget {
                   if (message.isOutdated) const _Badge(text: 'Neaktuální', color: Color(0xFF7F1D1D)),
                 ],
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 12),
               _InfoLine(icon: Icons.location_city_outlined, text: 'Oblast: ${message.approximateArea}'),
               _InfoLine(icon: Icons.schedule_outlined, text: 'Čas: ${_createdAtText(message.createdAt)}'),
               _InfoLine(icon: Icons.route_outlined, text: 'Předání: ${message.hopCount}'),
               _InfoLine(icon: Icons.verified_outlined, text: 'Ověření: ${message.verifiedCount}'),
-              const SizedBox(height: 14),
+              const SizedBox(height: 12),
               Row(
                 children: [
                   Expanded(
@@ -618,16 +714,14 @@ class _MessageCard extends StatelessWidget {
                       label: const Text('Neaktuální'),
                     ),
                   ),
-                  if (onDelete != null) ...[
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: onDelete,
-                        icon: const Icon(Icons.delete_outline),
-                        label: const Text('Smazat'),
-                      ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: onDelete,
+                      icon: const Icon(Icons.delete_outline),
+                      label: const Text('Smazat'),
                     ),
-                  ],
+                  ),
                 ],
               ),
             ],
