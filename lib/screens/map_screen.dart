@@ -409,7 +409,7 @@ class _MapScreenState extends State<MapScreen> {
               ),
               const SizedBox(height: 10),
               OutlinedButton.icon(
-                onPressed: () => _showSheetSnackBar(sheetContext, 'Sdílení přes mesh bude přidáno později.'),
+                onPressed: () => _showSheetSnackBar(sheetContext, 'Pro sdílení otevřete Reálný Bluetooth mesh v obrazovce Mesh.'),
                 icon: const Icon(Icons.hub_outlined),
                 label: const Text('Sdílet přes mesh'),
               ),

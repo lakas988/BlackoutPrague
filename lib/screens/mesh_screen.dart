@@ -8,17 +8,6 @@ import '../services/demo_mode_service.dart';
 import '../services/message_service.dart';
 import '../services/real_ble_mesh_service.dart';
 
-enum _MessageSection {
-  outgoing,
-  incoming,
-  all,
-}
-
-enum _MeshMode {
-  simulation,
-  realBluetooth,
-}
-
 class MeshScreen extends StatefulWidget {
   const MeshScreen({super.key});
 
@@ -36,8 +25,6 @@ class _MeshScreenState extends State<MeshScreen> {
   bool _isSimulationActive = false;
   bool _isDemoModeEnabled = false;
   int _nearbyNodeCount = 0;
-  _MessageSection _selectedSection = _MessageSection.outgoing;
-  _MeshMode _selectedMeshMode = _MeshMode.simulation;
 
   @override
   void initState() {
@@ -59,9 +46,8 @@ class _MeshScreenState extends State<MeshScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final outgoingCount = _messageService.outgoingMessages.length;
-    final incomingCount = _messageService.incomingMessages.length;
-    final messages = _messagesForSelectedSection();
+    final outgoingMessages = _visibleMessages(_messageService.outgoingMessages);
+    final incomingMessages = _visibleMessages(_messageService.incomingMessages);
 
     return SafeArea(
       child: ListView(
@@ -70,72 +56,54 @@ class _MeshScreenState extends State<MeshScreen> {
           Text('Mesh komunikace', style: Theme.of(context).textTheme.headlineMedium),
           const SizedBox(height: 8),
           Text(
-            'Toto je lokální simulace. Produkční verze by využívala Bluetooth mesh / relay komunikaci mezi telefony.',
+            'Reálný Bluetooth mesh předává krátké krizové zprávy mezi zařízeními bez internetu.',
             style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: const Color(0xFFD6D9DE)),
           ),
           const SizedBox(height: 18),
-          if (_isDemoModeEnabled) ...[
-            const _DemoMeshBanner(),
-            const SizedBox(height: 12),
-          ],
-          SegmentedButton<_MeshMode>(
-            segments: const [
-              ButtonSegment(value: _MeshMode.simulation, label: Text('Simulace'), icon: Icon(Icons.science_outlined)),
-              ButtonSegment(value: _MeshMode.realBluetooth, label: Text('Reálné Bluetooth'), icon: Icon(Icons.bluetooth_connected_outlined)),
-            ],
-            selected: {_selectedMeshMode},
-            onSelectionChanged: (selection) => setState(() => _selectedMeshMode = selection.first),
+          const _SectionTitle(title: 'Stav sítě'),
+          const SizedBox(height: 10),
+          _RealBleStatusCard(
+            isEnabled: _realBleMeshService.isEnabled,
+            permissionStatus: _realBleMeshService.permissionStatus,
+            isScanning: _realBleMeshService.isScanning,
+            isAdvertising: _realBleMeshService.isAdvertising,
+            receivedCount: _realBleMeshService.receivedCount,
+            lastError: _realBleMeshService.lastError,
           ),
-          const SizedBox(height: 14),
-          if (_selectedMeshMode == _MeshMode.simulation) ...[
-            _MeshStatusCard(
+          const SizedBox(height: 12),
+          SizedBox(
+            height: 56,
+            child: FilledButton.icon(
+              onPressed: _toggleRealBle,
+              icon: Icon(_realBleMeshService.isEnabled ? Icons.bluetooth_disabled_outlined : Icons.bluetooth_searching_outlined),
+              label: Text(_realBleMeshService.isEnabled ? 'Vypnout Reálný Bluetooth mesh' : 'Zapnout Reálný Bluetooth mesh'),
+            ),
+          ),
+          if (!_realBleMeshService.isEnabled) ...[
+            const SizedBox(height: 8),
+            Text(
+              'Zapněte Bluetooth mesh pro příjem zpráv.',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: const Color(0xFFD6D9DE)),
+            ),
+          ],
+          if (_isDemoModeEnabled) ...[
+            const SizedBox(height: 22),
+            const _SectionTitle(title: 'Demo simulace'),
+            const SizedBox(height: 10),
+            _DemoSimulationCard(
               isSimulationActive: _isSimulationActive,
               nearbyNodeCount: _nearbyNodeCount,
-              outgoingCount: outgoingCount,
-              incomingCount: incomingCount,
-            ),
-            const SizedBox(height: 14),
-            SizedBox(
-              height: 54,
-              child: FilledButton.icon(
-                onPressed: _toggleSimulation,
-                icon: Icon(_isSimulationActive ? Icons.pause_circle_outline : Icons.play_circle_outline),
-                label: Text(_isSimulationActive ? 'Vypnout simulaci mesh' : 'Zapnout simulaci mesh'),
-              ),
-            ),
-          ] else ...[
-            _RealBleStatusCard(
-              permissionStatus: _realBleMeshService.permissionStatus,
-              isScanning: _realBleMeshService.isScanning,
-              isAdvertising: _realBleMeshService.isAdvertising,
-              receivedCount: _realBleMeshService.receivedCount,
-              lastError: _realBleMeshService.lastError,
-            ),
-            const SizedBox(height: 14),
-            SizedBox(
-              height: 54,
-              child: FilledButton.icon(
-                onPressed: _toggleRealBle,
-                icon: Icon(_realBleMeshService.isEnabled ? Icons.bluetooth_disabled_outlined : Icons.bluetooth_searching_outlined),
-                label: Text(_realBleMeshService.isEnabled ? 'Vypnout reálné Bluetooth' : 'Zapnout reálné Bluetooth'),
-              ),
+              incomingCount: incomingMessages.where((message) => message.isDemo).length,
+              onToggle: _toggleSimulation,
             ),
           ],
-          const SizedBox(height: 18),
-          SegmentedButton<_MessageSection>(
-            segments: const [
-              ButtonSegment(value: _MessageSection.outgoing, label: Text('Odeslané'), icon: Icon(Icons.north_east_outlined)),
-              ButtonSegment(value: _MessageSection.incoming, label: Text('Přijaté'), icon: Icon(Icons.south_west_outlined)),
-              ButtonSegment(value: _MessageSection.all, label: Text('Všechny zprávy'), icon: Icon(Icons.forum_outlined)),
-            ],
-            selected: {_selectedSection},
-            onSelectionChanged: (selection) => setState(() => _selectedSection = selection.first),
-          ),
-          const SizedBox(height: 18),
-          if (messages.isEmpty)
-            const _EmptyMessagesCard()
+          const SizedBox(height: 24),
+          const _SectionTitle(title: 'Odeslané zprávy'),
+          const SizedBox(height: 10),
+          if (outgoingMessages.isEmpty)
+            const _EmptyMessagesCard(text: 'Zatím nejsou žádné odeslané zprávy.')
           else
-            for (final message in messages) ...[
+            for (final message in outgoingMessages) ...[
               _MessageCard(
                 message: message,
                 onConfirm: () => _confirmMessage(message),
@@ -144,17 +112,43 @@ class _MeshScreenState extends State<MeshScreen> {
               ),
               const SizedBox(height: 12),
             ],
+          const SizedBox(height: 12),
+          _SectionTitle(
+            title: 'Přijaté zprávy',
+            action: incomingMessages.isEmpty
+                ? null
+                : TextButton.icon(
+                    onPressed: () => _confirmDeleteAllIncoming(incomingMessages),
+                    icon: const Icon(Icons.delete_sweep_outlined),
+                    label: const Text('Smazat vše'),
+                  ),
+          ),
+          const SizedBox(height: 10),
+          if (incomingMessages.isEmpty)
+            const _EmptyMessagesCard(text: 'Zatím nejsou žádné přijaté zprávy.')
+          else
+            for (final message in incomingMessages) ...[
+              _MessageCard(
+                message: message,
+                onConfirm: () => _confirmMessage(message),
+                onRelay: () => _relayMessage(message),
+                onMarkOutdated: () => _markMessageOutdated(message),
+                onDelete: () => _confirmDeleteMessage(message),
+              ),
+              const SizedBox(height: 12),
+            ],
         ],
       ),
     );
   }
-
 
   Future<void> _loadMeshState() async {
     await _messageService.loadMessages();
     await _demoModeService.load();
     if (_demoModeService.isEnabled) {
       await _messageService.addDemoMessagesIfNeeded();
+    } else {
+      await _messageService.clearDemoMessages();
     }
     if (!mounted) {
       return;
@@ -166,17 +160,30 @@ class _MeshScreenState extends State<MeshScreen> {
     if (!mounted) {
       return;
     }
-    setState(() => _isDemoModeEnabled = _demoModeService.isEnabled);
-    if (_demoModeService.isEnabled) {
+
+    final enabled = _demoModeService.isEnabled;
+    setState(() {
+      _isDemoModeEnabled = enabled;
+      if (!enabled) {
+        _isSimulationActive = false;
+        _nearbyNodeCount = 0;
+      }
+    });
+
+    if (enabled) {
       _messageService.addDemoMessagesIfNeeded();
+    } else {
+      _incomingTimer?.cancel();
+      _incomingTimer = null;
+      _messageService.clearDemoMessages();
     }
   }
-  List<EmergencyMessage> _messagesForSelectedSection() {
-    return switch (_selectedSection) {
-      _MessageSection.outgoing => _messageService.outgoingMessages,
-      _MessageSection.incoming => _messageService.incomingMessages,
-      _MessageSection.all => _messageService.messages,
-    };
+
+  List<EmergencyMessage> _visibleMessages(List<EmergencyMessage> messages) {
+    if (_isDemoModeEnabled) {
+      return messages;
+    }
+    return messages.where((message) => !message.isDemo).toList(growable: false);
   }
 
   void _refreshMessages() {
@@ -186,6 +193,11 @@ class _MeshScreenState extends State<MeshScreen> {
   }
 
   void _toggleSimulation() {
+    if (!_isDemoModeEnabled) {
+      _showSnackBar('Simulace mesh je dostupná pouze v Demo režimu.');
+      return;
+    }
+
     setState(() {
       _isSimulationActive = !_isSimulationActive;
       _nearbyNodeCount = _isSimulationActive ? 2 + _random.nextInt(7) : 0;
@@ -211,19 +223,20 @@ class _MeshScreenState extends State<MeshScreen> {
     _incomingTimer?.cancel();
     final seconds = 30 + _random.nextInt(31);
     _incomingTimer = Timer(Duration(seconds: seconds), () async {
-      if (!_isSimulationActive) {
+      if (!_isSimulationActive || !_isDemoModeEnabled) {
         return;
       }
 
       await _messageService.addIncomingSample(
         type: _sampleType(),
-        text: _sampleText(),
+        text: 'Demo: ${_sampleText()}',
         priority: _samplePriority(),
-        senderAlias: 'Uzel ${100 + _random.nextInt(900)}',
+        senderAlias: 'Demo uzel ${100 + _random.nextInt(900)}',
         approximateArea: _sampleArea(),
         ttlMinutes: 120,
         hopCount: 1 + _random.nextInt(3),
         verifiedCount: _random.nextInt(2),
+        isDemo: true,
       );
 
       if (!mounted) {
@@ -287,14 +300,61 @@ class _MeshScreenState extends State<MeshScreen> {
     if (_realBleMeshService.isEnabled) {
       final wasBroadcast = await _realBleMeshService.broadcastMessage(relayedMessage);
       _showSnackBar(wasBroadcast ? 'Zpráva byla předána dál přes BLE mesh.' : (_realBleMeshService.lastError ?? 'Toto zařízení nepodporuje BLE vysílání.'));
+      return;
+    }
+
+    if (_isDemoModeEnabled && _isSimulationActive) {
+      _showSnackBar('Zpráva byla předána dál v Simulaci mesh.');
     } else {
-      _showSnackBar('Zpráva byla předána dál v simulaci.');
+      _showSnackBar('Zapněte Bluetooth mesh pro odeslání.');
     }
   }
 
   Future<void> _markMessageOutdated(EmergencyMessage message) async {
     await _messageService.markMessageOutdated(message.id);
     _showSnackBar('Zpráva byla označena jako neaktuální.');
+  }
+
+  Future<void> _confirmDeleteMessage(EmergencyMessage message) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Smazat zprávu'),
+        content: const Text('Opravdu chcete smazat tuto zprávu?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Zrušit')),
+          FilledButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('Smazat')),
+        ],
+      ),
+    );
+
+    if (confirmed != true) {
+      return;
+    }
+
+    await _messageService.deleteMessage(message.id);
+    _showSnackBar('Zpráva byla smazána.');
+  }
+
+  Future<void> _confirmDeleteAllIncoming(List<EmergencyMessage> incomingMessages) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Smazat přijaté zprávy'),
+        content: const Text('Opravdu chcete smazat všechny přijaté zprávy?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Zrušit')),
+          FilledButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('Smazat vše')),
+        ],
+      ),
+    );
+
+    if (confirmed != true) {
+      return;
+    }
+
+    await _messageService.deleteMessagesById(incomingMessages.map((message) => message.id).toSet());
+    _showSnackBar('Přijaté zprávy byly smazány.');
   }
 
   void _showSnackBar(String message) {
@@ -305,59 +365,26 @@ class _MeshScreenState extends State<MeshScreen> {
   }
 }
 
-class _DemoMeshBanner extends StatelessWidget {
-  const _DemoMeshBanner();
+class _SectionTitle extends StatelessWidget {
+  const _SectionTitle({required this.title, this.action});
+
+  final String title;
+  final Widget? action;
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      color: const Color(0xFF3A1B1B),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Text(
-          'Demo režim: přijaté zprávy jsou ukázková data pro prezentaci porotě.',
-          style: Theme.of(context).textTheme.bodyMedium,
-        ),
-      ),
-    );
-  }
-}
-class _MeshStatusCard extends StatelessWidget {
-  const _MeshStatusCard({
-    required this.isSimulationActive,
-    required this.nearbyNodeCount,
-    required this.outgoingCount,
-    required this.incomingCount,
-  });
-
-  final bool isSimulationActive;
-  final int nearbyNodeCount;
-  final int outgoingCount;
-  final int incomingCount;
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(18),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Stav mesh sítě', style: Theme.of(context).textTheme.titleLarge),
-            const SizedBox(height: 14),
-            _StatusLine(label: 'Stav', value: isSimulationActive ? 'Simulace aktivní' : 'Simulace neaktivní'),
-            _StatusLine(label: 'Okolní uzly', value: '$nearbyNodeCount'),
-            _StatusLine(label: 'Odeslané zprávy', value: '$outgoingCount'),
-            _StatusLine(label: 'Přijaté zprávy', value: '$incomingCount'),
-          ],
-        ),
-      ),
+    return Row(
+      children: [
+        Expanded(child: Text(title, style: Theme.of(context).textTheme.titleLarge)),
+        ?action,
+      ],
     );
   }
 }
 
 class _RealBleStatusCard extends StatelessWidget {
   const _RealBleStatusCard({
+    required this.isEnabled,
     required this.permissionStatus,
     required this.isScanning,
     required this.isAdvertising,
@@ -365,6 +392,7 @@ class _RealBleStatusCard extends StatelessWidget {
     required this.lastError,
   });
 
+  final bool isEnabled;
   final String permissionStatus;
   final bool isScanning;
   final bool isAdvertising;
@@ -379,21 +407,76 @@ class _RealBleStatusCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Reálné Bluetooth mesh', style: Theme.of(context).textTheme.titleLarge),
-            const SizedBox(height: 8),
-            Text(
-              'Store-and-forward BLE prototyp bez internetu. Nejde o produkční Bluetooth Mesh standard.',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: const Color(0xFFD6D9DE)),
+            Row(
+              children: [
+                Icon(isEnabled ? Icons.bluetooth_connected_outlined : Icons.bluetooth_outlined, color: const Color(0xFFFFD166), size: 30),
+                const SizedBox(width: 12),
+                Expanded(child: Text(isEnabled ? 'Reálný Bluetooth mesh je zapnutý' : 'Reálný Bluetooth mesh je vypnutý', style: Theme.of(context).textTheme.titleMedium)),
+              ],
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: 12),
             _StatusLine(label: 'Oprávnění', value: permissionStatus),
-            _StatusLine(label: 'Skenování', value: isScanning ? 'aktivní' : 'neaktivní'),
-            _StatusLine(label: 'Vysílání', value: isAdvertising ? 'aktivní' : 'neaktivní'),
-            _StatusLine(label: 'Přijaté BLE zprávy', value: '$receivedCount'),
+            _StatusLine(label: 'Příjem zpráv', value: isScanning ? 'aktivní' : 'neaktivní'),
+            _StatusLine(label: 'Odesílání', value: isAdvertising ? 'aktivní' : 'neaktivní'),
+            _StatusLine(label: 'Přijaté zprávy', value: '$receivedCount'),
             if (lastError != null) ...[
               const SizedBox(height: 8),
               Text(lastError!, style: const TextStyle(color: Color(0xFFFFD166), fontWeight: FontWeight.w800)),
             ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _DemoSimulationCard extends StatelessWidget {
+  const _DemoSimulationCard({
+    required this.isSimulationActive,
+    required this.nearbyNodeCount,
+    required this.incomingCount,
+    required this.onToggle,
+  });
+
+  final bool isSimulationActive;
+  final int nearbyNodeCount;
+  final int incomingCount;
+  final VoidCallback onToggle;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      color: const Color(0xFF3A1B1B),
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.science_outlined, color: Colors.white, size: 30),
+                const SizedBox(width: 12),
+                Expanded(child: Text('Simulace mesh', style: Theme.of(context).textTheme.titleMedium)),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Demo režim zapíná ukázková data a simulované zprávy pro prezentaci.',
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+            const SizedBox(height: 14),
+            _StatusLine(label: 'Stav', value: isSimulationActive ? 'aktivní' : 'neaktivní'),
+            _StatusLine(label: 'Ukázkové okolní uzly', value: '$nearbyNodeCount'),
+            _StatusLine(label: 'Demo přijaté zprávy', value: '$incomingCount'),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: onToggle,
+                icon: Icon(isSimulationActive ? Icons.pause_circle_outline : Icons.play_circle_outline),
+                label: Text(isSimulationActive ? 'Vypnout Simulaci mesh' : 'Zapnout Simulaci mesh'),
+              ),
+            ),
           ],
         ),
       ),
@@ -422,14 +505,16 @@ class _StatusLine extends StatelessWidget {
 }
 
 class _EmptyMessagesCard extends StatelessWidget {
-  const _EmptyMessagesCard();
+  const _EmptyMessagesCard({required this.text});
+
+  final String text;
 
   @override
   Widget build(BuildContext context) {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(18),
-        child: Text('Zatím zde nejsou žádné zprávy.', style: Theme.of(context).textTheme.bodyLarge),
+        child: Text(text, style: Theme.of(context).textTheme.bodyLarge),
       ),
     );
   }
@@ -441,21 +526,29 @@ class _MessageCard extends StatelessWidget {
     required this.onConfirm,
     required this.onRelay,
     required this.onMarkOutdated,
+    this.onDelete,
   });
 
   final EmergencyMessage message;
   final VoidCallback onConfirm;
   final VoidCallback onRelay;
   final VoidCallback onMarkOutdated;
+  final VoidCallback? onDelete;
 
   @override
   Widget build(BuildContext context) {
     final inactive = message.isExpired || message.isOutdated;
+    final important = message.priority == EmergencyMessagePriority.high || message.priority == EmergencyMessagePriority.critical;
+    final cardColor = inactive
+        ? const Color(0xFF111318)
+        : important
+            ? const Color(0xFF2A1518)
+            : null;
 
     return Opacity(
       opacity: inactive ? 0.58 : 1,
       child: Card(
-        color: inactive ? const Color(0xFF111318) : null,
+        color: cardColor,
         child: Padding(
           padding: const EdgeInsets.all(18),
           child: Column(
@@ -464,7 +557,7 @@ class _MessageCard extends StatelessWidget {
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(_typeIcon(message.type), color: const Color(0xFFFFD166), size: 30),
+                  Icon(_typeIcon(message.type), color: important ? const Color(0xFFFF6B6B) : const Color(0xFFFFD166), size: 30),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(
@@ -485,17 +578,16 @@ class _MessageCard extends StatelessWidget {
                 children: [
                   _Badge(text: 'Priorita: ${message.priority.czechLabel}', color: _priorityColor(message.priority)),
                   _Badge(text: message.isOutgoing ? 'Odeslaná' : 'Přijatá'),
-                  if (message.isDemo) const _Badge(text: 'Demo / ukázková zpráva', color: Color(0xFF7F1D1D)),
+                  if (message.isDemo) const _Badge(text: 'Demo', color: Color(0xFF7F1D1D)),
                   if (message.isExpired) const _Badge(text: 'Vypršelo', color: Color(0xFF7F1D1D)),
                   if (message.isOutdated) const _Badge(text: 'Neaktuální', color: Color(0xFF7F1D1D)),
                 ],
               ),
               const SizedBox(height: 14),
               _InfoLine(icon: Icons.location_city_outlined, text: 'Oblast: ${message.approximateArea}'),
-              _InfoLine(icon: Icons.schedule_outlined, text: 'Vytvořeno: ${_createdAtText(message.createdAt)}'),
-              _InfoLine(icon: Icons.route_outlined, text: 'Počet předání: ${message.hopCount}'),
-              _InfoLine(icon: Icons.verified_outlined, text: 'Počet potvrzení: ${message.verifiedCount}'),
-              _InfoLine(icon: Icons.timer_outlined, text: _ttlText(message)),
+              _InfoLine(icon: Icons.schedule_outlined, text: 'Čas: ${_createdAtText(message.createdAt)}'),
+              _InfoLine(icon: Icons.route_outlined, text: 'Předání: ${message.hopCount}'),
+              _InfoLine(icon: Icons.verified_outlined, text: 'Ověření: ${message.verifiedCount}'),
               const SizedBox(height: 14),
               Row(
                 children: [
@@ -503,7 +595,7 @@ class _MessageCard extends StatelessWidget {
                     child: OutlinedButton.icon(
                       onPressed: inactive ? null : onConfirm,
                       icon: const Icon(Icons.check_circle_outline),
-                      label: const Text('Potvrdit hlášení'),
+                      label: const Text('Potvrdit'),
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -517,13 +609,26 @@ class _MessageCard extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 8),
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton.icon(
-                  onPressed: message.isOutdated ? null : onMarkOutdated,
-                  icon: const Icon(Icons.history_toggle_off_outlined),
-                  label: const Text('Označit jako neaktuální'),
-                ),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: message.isOutdated ? null : onMarkOutdated,
+                      icon: const Icon(Icons.history_toggle_off_outlined),
+                      label: const Text('Neaktuální'),
+                    ),
+                  ),
+                  if (onDelete != null) ...[
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: onDelete,
+                        icon: const Icon(Icons.delete_outline),
+                        label: const Text('Smazat'),
+                      ),
+                    ),
+                  ],
+                ],
               ),
             ],
           ),
@@ -565,15 +670,6 @@ class _MessageCard extends StatelessWidget {
       return 'před ${difference.inHours} h';
     }
     return 'před ${difference.inDays} dny';
-  }
-
-  String _ttlText(EmergencyMessage message) {
-    final elapsedMinutes = DateTime.now().difference(message.createdAt).inMinutes;
-    final remainingMinutes = message.ttlMinutes - elapsedMinutes;
-    if (remainingMinutes <= 0) {
-      return 'TTL: zpráva vypršela';
-    }
-    return 'TTL: zbývá $remainingMinutes min';
   }
 }
 

@@ -1,4 +1,4 @@
-import 'dart:convert';
+﻿import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -80,10 +80,11 @@ class MessageService extends ChangeNotifier {
     int ttlMinutes = 120,
     int hopCount = 1,
     int verifiedCount = 0,
+    bool isDemo = false,
   }) async {
     await loadMessages();
     final message = EmergencyMessage(
-      id: _createId('in'),
+      id: _createId(isDemo ? 'demo' : 'in'),
       type: type,
       text: text,
       createdAt: DateTime.now(),
@@ -207,6 +208,24 @@ class MessageService extends ChangeNotifier {
 
   Future<void> markMessageOutdated(String messageId) async {
     await _updateMessage(messageId, (message) => message.copyWith(isOutdated: true));
+  }
+
+  Future<void> deleteMessage(String messageId) async {
+    await loadMessages();
+    _messages.removeWhere((message) => message.id == messageId);
+    await _saveMessages();
+    notifyListeners();
+  }
+
+  Future<void> deleteMessagesById(Set<String> messageIds) async {
+    await loadMessages();
+    if (messageIds.isEmpty) {
+      return;
+    }
+
+    _messages.removeWhere((message) => messageIds.contains(message.id));
+    await _saveMessages();
+    notifyListeners();
   }
 
   Future<void> _addMessage(EmergencyMessage message) async {

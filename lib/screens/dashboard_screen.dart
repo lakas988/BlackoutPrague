@@ -265,10 +265,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
       builder: (context) {
         return AlertDialog(
           title: const Text('SOS zpráva'),
-          content: const Text('Opravdu chcete vytvořit SOS zprávu?'),
+          content: const Text('Opravdu chcete vytvořit SOS zprávu?\n\nZpráva bude uložena v telefonu a při zapnutém BLE mesh odeslána okolním zařízením.'),
           actions: [
             TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Zrušit')),
-            FilledButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('Vytvořit SOS')),
+            FilledButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('Vytvořit SOS zprávu')),
           ],
         );
       },
@@ -424,23 +424,35 @@ class _SosButton extends StatelessWidget {
 @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 96,
+      height: 124,
       child: FilledButton(
         style: FilledButton.styleFrom(
           backgroundColor: const Color(0xFFB91C1C),
           foregroundColor: Colors.white,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
         ),
         onPressed: onPressed,
-        child: const Text(
-          'SOS',
-          style: TextStyle(fontSize: 36, fontWeight: FontWeight.w900, letterSpacing: 0),
+        child: const Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.warning_amber_rounded, size: 42),
+            SizedBox(width: 16),
+            Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('SOS', style: TextStyle(fontSize: 40, fontWeight: FontWeight.w900, letterSpacing: 0)),
+                SizedBox(height: 2),
+                Text('Vytvořit nouzovou zprávu', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
+              ],
+            ),
+          ],
         ),
       ),
     );
   }
 }
-
 class _QuickActions extends StatelessWidget {
   const _QuickActions({required this.onCreateMessage, required this.onOpenFindHelp, required this.onOpenGuides});
 
@@ -619,7 +631,7 @@ class _UltraDashboard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 18),
-          const Text('Mesh: připravena lokální simulace komunikace'),
+          const Text('Mesh: krátké krizové zprávy přes Bluetooth'),
         ],
       ),
     );

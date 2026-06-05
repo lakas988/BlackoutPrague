@@ -395,8 +395,8 @@ class _PermissionsStep extends StatelessWidget {
         const SizedBox(height: 12),
         const _InfoCard(
           icon: Icons.hub_outlined,
-          title: 'Bluetooth mesh později',
-          text: 'Komunikace přes Bluetooth mesh bude přidána později. Teď se nevyžaduje žádné reálné oprávnění.',
+          title: 'Bluetooth mesh',
+          text: 'Bluetooth mesh umožňuje posílat krátké krizové zprávy mezi zařízeními bez internetu. Funkce vyžaduje zapnutý Bluetooth a oprávnění v telefonu. Bluetooth mesh je dostupný jako prototyp pro Android zařízení.',
         ),
         const SizedBox(height: 12),
         const _InfoCard(

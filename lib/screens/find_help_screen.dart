@@ -108,7 +108,7 @@ class _FindHelpScreenState extends State<FindHelpScreen> {
               _HelpPointCard(
                 result: result,
                 onShowMap: () => _openHelpPointOnMap(result.point.id),
-                onShareMesh: () => _showPlaceholder('Sdílení přes mesh bude přidáno později.'),
+                onShareMesh: () => _showPlaceholder('Pro sdílení otevřete Reálný Bluetooth mesh v obrazovce Mesh.'),
               ),
               const SizedBox(height: 12),
             ],
@@ -122,7 +122,7 @@ class _FindHelpScreenState extends State<FindHelpScreen> {
                 _HelpPointCard(
                   result: result,
                   onShowMap: () => _openHelpPointOnMap(result.point.id),
-                  onShareMesh: () => _showPlaceholder('Sdílení přes mesh bude přidáno později.'),
+                  onShareMesh: () => _showPlaceholder('Pro sdílení otevřete Reálný Bluetooth mesh v obrazovce Mesh.'),
                 ),
                 const SizedBox(height: 12),
               ],
@@ -135,7 +135,7 @@ class _FindHelpScreenState extends State<FindHelpScreen> {
                   result: result,
                   isOutsideSelectedArea: true,
                   onShowMap: () => _openHelpPointOnMap(result.point.id),
-                  onShareMesh: () => _showPlaceholder('Sdílení přes mesh bude přidáno později.'),
+                  onShareMesh: () => _showPlaceholder('Pro sdílení otevřete Reálný Bluetooth mesh v obrazovce Mesh.'),
                 ),
                 const SizedBox(height: 12),
               ],
