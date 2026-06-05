@@ -11,6 +11,6 @@ extension MapModeLabel on MapMode {
 
   String get czechDescription => switch (this) {
     MapMode.onlineTiles => 'Online mapa používá internet.',
-    MapMode.offlineMap => 'Offline mapa zatím není připravena.',
+    MapMode.offlineMap => 'Offline mapa používá mapový balíček uložený přímo v aplikaci. Funguje i bez internetu.',
   };
 }

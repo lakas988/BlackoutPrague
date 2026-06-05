@@ -37,12 +37,17 @@ dependencies:
   shared_preferences: ^2.5.5
   battery_plus: ^7.0.0
   connectivity_plus: ^7.1.1
-  flutter_map: ^8.3.0
+  flutter_map: ^7.0.2
   latlong2: ^0.9.1
   geolocator: ^14.0.2
   permission_handler: ^12.0.3
   flutter_blue_plus: ^2.3.5
   flutter_ble_peripheral: ^2.1.1
+  vector_map_tiles: ^8.0.0
+  vector_map_tiles_mbtiles: ^1.2.0
+  vector_tile_renderer: ^5.2.1
+  mbtiles: ^0.4.2
+  sqlite3_flutter_libs: ^0.5.42
 
 dev_dependencies:
   flutter_test:

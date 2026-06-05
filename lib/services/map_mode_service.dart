@@ -10,7 +10,7 @@ class MapModeService {
     final value = preferences.getString(_mapModeKey);
     return MapMode.values.firstWhere(
       (mode) => mode.name == value,
-      orElse: () => MapMode.onlineTiles,
+      orElse: () => MapMode.offlineMap,
     );
   }
 

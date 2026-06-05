@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:vector_map_tiles/vector_map_tiles.dart';
+import 'package:vector_tile_renderer/vector_tile_renderer.dart' as vtr;
 
 import '../data/prague_areas.dart';
 import '../data/prague_help_points.dart';
@@ -9,6 +11,7 @@ import '../models/help_point.dart';
 import '../models/map_mode.dart';
 import '../models/prague_area.dart';
 import '../services/location_service.dart';
+import '../services/map_file_service.dart';
 import '../services/map_mode_service.dart';
 import '../services/selected_area_service.dart';
 
@@ -23,17 +26,21 @@ class MapScreen extends StatefulWidget {
 }
 
 class _MapScreenState extends State<MapScreen> {
-  static const _defaultPragueCenter = LatLng(50.0755, 14.4378);
+  static const _defaultPragueCenter = LatLng(50.0855, 14.427);
 
   final _locationService = LocationService();
   final _selectedAreaService = SelectedAreaService();
   final _mapModeService = MapModeService();
+  final _mapFileService = MapFileService();
   final _mapController = MapController();
 
   PragueArea _selectedArea = getDefaultPragueArea();
   AppLocation? _lastKnownLocation;
   HelpPointType? _selectedType;
-  MapMode _mapMode = MapMode.onlineTiles;
+  MapMode _mapMode = MapMode.offlineMap;
+  OfflineMapBundle? _offlineMapBundle;
+  bool _isOfflineMapLoading = false;
+  String? _offlineMapError;
   bool _isUpdatingLocation = false;
   String? _locationMessage;
   String? _selectedHelpPointId;
@@ -53,12 +60,14 @@ class _MapScreenState extends State<MapScreen> {
     super.didUpdateWidget(oldWidget);
     if (widget.focusNonce != oldWidget.focusNonce || widget.selectedHelpPointId != oldWidget.selectedHelpPointId) {
       _selectedHelpPointId = widget.selectedHelpPointId;
-      if (widget.selectedHelpPointId != null && _mapMode == MapMode.offlineMap) {
-        _mapMode = MapMode.onlineTiles;
-        _mapModeService.saveMode(MapMode.onlineTiles);
-      }
-      _focusSelectedHelpPointFromWidget();
+      _focusSelectedHelpPointFromWidget(force: true);
     }
+  }
+
+  @override
+  void dispose() {
+    _offlineMapBundle?.dispose();
+    super.dispose();
   }
 
   @override
@@ -67,6 +76,10 @@ class _MapScreenState extends State<MapScreen> {
     final visiblePoints = _visibleHelpPoints;
     final selectedPoint = _selectedHelpPoint;
     final navigationPoint = _navigationHelpPoint;
+
+    if (_mapMode == MapMode.offlineMap && _offlineMapBundle == null && !_isOfflineMapLoading && _offlineMapError == null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _ensureOfflineMapLoaded());
+    }
 
     return SafeArea(
       child: ListView(
@@ -94,7 +107,7 @@ class _MapScreenState extends State<MapScreen> {
           const SizedBox(height: 12),
           _MapModeSelector(mode: _mapMode, onChanged: _setMapMode),
           const SizedBox(height: 8),
-          _MapModeNotice(mode: _mapMode),
+          _MapModeNotice(mode: _mapMode, offlineMapError: _offlineMapError),
           const SizedBox(height: 10),
           SizedBox(
             height: 430,
@@ -114,12 +127,19 @@ class _MapScreenState extends State<MapScreen> {
                       typeColor: _typeColor,
                       onOpenPoint: _selectAndShowHelpPoint,
                     )
-                  : const _OfflineMapUnavailable(),
+                  : _offlineMapWidget(
+                      center: center,
+                      selectedPoint: selectedPoint,
+                      navigationPoint: navigationPoint,
+                      visiblePoints: visiblePoints,
+                    ),
             ),
           ),
           const SizedBox(height: 8),
-          if (_mapMode == MapMode.onlineTiles)
-            Text('© OpenStreetMap contributors', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: const Color(0xFFD6D9DE))),
+          Text(
+            _mapMode == MapMode.onlineTiles ? '© OpenStreetMap contributors' : '© OpenMapTiles · © OpenStreetMap contributors',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(color: const Color(0xFFD6D9DE)),
+          ),
           if (selectedPoint != null) ...[
             const SizedBox(height: 12),
             _SelectedPointCard(
@@ -151,6 +171,70 @@ class _MapScreenState extends State<MapScreen> {
     );
   }
 
+  Widget _offlineMapWidget({
+    required LatLng center,
+    required HelpPoint? selectedPoint,
+    required HelpPoint? navigationPoint,
+    required List<HelpPoint> visiblePoints,
+  }) {
+    final offlineMap = _offlineMapBundle;
+    if (_isOfflineMapLoading) {
+      return const _OfflineMapLoading();
+    }
+    if (_offlineMapError != null || offlineMap == null) {
+      return _OfflineMapError(error: _offlineMapError);
+    }
+
+    return _OfflineVectorHelpMap(
+      key: ValueKey('offline-${center.latitude}-${center.longitude}-${_selectedType?.name ?? 'all'}-${_selectedHelpPointId ?? 'none'}-${offlineMap.fileSizeBytes}'),
+      controller: _mapController,
+      center: center,
+      offlineMap: offlineMap,
+      selectedPoint: selectedPoint,
+      navigationPoint: navigationPoint,
+      lastKnownLocation: _lastKnownLocation,
+      selectedArea: _selectedArea,
+      points: visiblePoints,
+      typeIcon: _typeIcon,
+      typeColor: _typeColor,
+      onOpenPoint: _selectAndShowHelpPoint,
+    );
+  }
+
+  Future<void> _ensureOfflineMapLoaded() async {
+    if (_offlineMapBundle != null || _isOfflineMapLoading || !mounted) {
+      return;
+    }
+
+    setState(() {
+      _isOfflineMapLoading = true;
+      _offlineMapError = null;
+    });
+
+    try {
+      final bundle = await _mapFileService.loadOfflineMap();
+      if (!mounted) {
+        bundle.dispose();
+        return;
+      }
+      setState(() {
+        _offlineMapBundle = bundle;
+        _isOfflineMapLoading = false;
+      });
+      final selectedPoint = _selectedHelpPoint;
+      if (selectedPoint != null) {
+        WidgetsBinding.instance.addPostFrameCallback((_) => _moveMapToPoint(selectedPoint));
+      }
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _isOfflineMapLoading = false;
+        _offlineMapError = error.toString();
+      });
+    }
+  }
   _Coordinate get _distanceOrigin {
     final location = _lastKnownLocation;
     if (location != null) {
@@ -209,7 +293,7 @@ class _MapScreenState extends State<MapScreen> {
     setState(() {
       _selectedArea = getPragueAreaById(selectedAreaId);
       _lastKnownLocation = location;
-      _mapMode = widget.selectedHelpPointId == null ? mode : MapMode.onlineTiles;
+      _mapMode = mode;
       _locationMessage = location == null ? null : 'Používáme poslední známou polohu.';
     });
 
@@ -219,6 +303,9 @@ class _MapScreenState extends State<MapScreen> {
   Future<void> _setMapMode(MapMode mode) async {
     setState(() => _mapMode = mode);
     await _mapModeService.saveMode(mode);
+    if (mode == MapMode.offlineMap) {
+      await _ensureOfflineMapLoaded();
+    }
   }
 
   Future<void> _selectArea(PragueArea area) async {
@@ -328,17 +415,14 @@ class _MapScreenState extends State<MapScreen> {
   void _selectAndShowHelpPoint(HelpPoint point) {
     setState(() {
       _selectedHelpPointId = point.id;
-      if (_mapMode == MapMode.offlineMap) {
-        _mapMode = MapMode.onlineTiles;
-      }
-    });
+});
     _moveMapToPoint(point);
     _showHelpPointSheet(point);
   }
 
   void _moveMapToPoint(HelpPoint point) {
     try {
-      _mapController.move(LatLng(point.latitude, point.longitude), 14.8);
+      _mapController.move(LatLng(point.latitude, point.longitude), _mapMode == MapMode.offlineMap ? 14 : 14.8);
     } catch (_) {
       // MapController nemusí být připravený při prvním vykreslení obrazovky.
     }
@@ -354,8 +438,7 @@ class _MapScreenState extends State<MapScreen> {
     setState(() {
       _selectedHelpPointId = point.id;
       _navigationHelpPointId = point.id;
-      _mapMode = MapMode.onlineTiles;
-    });
+});
     _moveMapToPoint(point);
   }
 
@@ -560,8 +643,145 @@ class _OnlineHelpMap extends StatelessWidget {
   }
 }
 
-class _OfflineMapUnavailable extends StatelessWidget {
-  const _OfflineMapUnavailable();
+class _OfflineVectorHelpMap extends StatelessWidget {
+  const _OfflineVectorHelpMap({
+    super.key,
+    required this.controller,
+    required this.center,
+    required this.offlineMap,
+    required this.selectedPoint,
+    required this.navigationPoint,
+    required this.lastKnownLocation,
+    required this.selectedArea,
+    required this.points,
+    required this.typeIcon,
+    required this.typeColor,
+    required this.onOpenPoint,
+  });
+
+  static final vtr.Theme _theme = vtr.ProvidedThemes.lightTheme().copyWith(
+    types: {
+      vtr.ThemeLayerType.background,
+      vtr.ThemeLayerType.fill,
+      vtr.ThemeLayerType.line,
+      vtr.ThemeLayerType.fillExtrusion,
+    },
+  );
+
+  final MapController controller;
+  final LatLng center;
+  final OfflineMapBundle offlineMap;
+  final HelpPoint? selectedPoint;
+  final HelpPoint? navigationPoint;
+  final AppLocation? lastKnownLocation;
+  final PragueArea selectedArea;
+  final List<HelpPoint> points;
+  final IconData Function(HelpPointType type) typeIcon;
+  final Color Function(HelpPointType type) typeColor;
+  final ValueChanged<HelpPoint> onOpenPoint;
+
+  @override
+  Widget build(BuildContext context) {
+    final defaultZoom = offlineMap.metadata.defaultZoom ?? 14;
+    final initialZoom = (selectedPoint == null ? defaultZoom : offlineMap.maxZoom.toDouble())
+        .clamp(offlineMap.minZoom.toDouble(), offlineMap.maxZoom.toDouble())
+        .toDouble();
+
+    return FlutterMap(
+      mapController: controller,
+      options: MapOptions(
+        initialCenter: center,
+        initialZoom: initialZoom,
+        minZoom: offlineMap.minZoom.toDouble(),
+        maxZoom: offlineMap.maxZoom.toDouble(),
+      ),
+      children: [
+        VectorTileLayer(
+          tileProviders: TileProviders({'openmaptiles': offlineMap.provider}),
+          theme: _theme,
+          layerMode: VectorTileLayerMode.raster,
+          maximumZoom: offlineMap.maxZoom.toDouble(),
+          maximumTileSubstitutionDifference: 1,
+          showTileDebugInfo: false,
+        ),
+        if (lastKnownLocation != null && navigationPoint != null)
+          PolylineLayer(
+            polylines: [
+              Polyline(
+                points: [LatLng(lastKnownLocation!.latitude, lastKnownLocation!.longitude), LatLng(navigationPoint!.latitude, navigationPoint!.longitude)],
+                color: const Color(0xFFFFD166),
+                strokeWidth: 5,
+              ),
+            ],
+          ),
+        MarkerLayer(markers: _buildMarkers()),
+      ],
+    );
+  }
+
+  List<Marker> _buildMarkers() {
+    final origin = lastKnownLocation == null
+        ? LatLng(selectedArea.latitude, selectedArea.longitude)
+        : LatLng(lastKnownLocation!.latitude, lastKnownLocation!.longitude);
+
+    final markers = <Marker>[
+      Marker(
+        point: origin,
+        width: 48,
+        height: 48,
+        child: Icon(
+          lastKnownLocation == null ? Icons.location_city : Icons.my_location,
+          color: lastKnownLocation == null ? const Color(0xFFFFD166) : const Color(0xFF38BDF8),
+          size: 38,
+        ),
+      ),
+    ];
+
+    markers.addAll(points.map((point) {
+      final isSelected = point.id == selectedPoint?.id;
+      return Marker(
+        point: LatLng(point.latitude, point.longitude),
+        width: isSelected ? 58 : 44,
+        height: isSelected ? 58 : 44,
+        child: _MapMarkerButton(
+          point: point,
+          icon: typeIcon(point.type),
+          color: typeColor(point.type),
+          isSelected: isSelected,
+          onPressed: () => onOpenPoint(point),
+        ),
+      );
+    }));
+
+    return markers;
+  }
+}
+
+class _OfflineMapLoading extends StatelessWidget {
+  const _OfflineMapLoading();
+
+  @override
+  Widget build(BuildContext context) {
+    return const ColoredBox(
+      color: Color(0xFFEFF1F3),
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(height: 12),
+            Text('Načítám offline mapu Prahy...'),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _OfflineMapError extends StatelessWidget {
+  const _OfflineMapError({required this.error});
+
+  final String? error;
 
   @override
   Widget build(BuildContext context) {
@@ -573,11 +793,19 @@ class _OfflineMapUnavailable extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.offline_bolt_outlined, color: Color(0xFFFFD166), size: 44),
+              const Icon(Icons.error_outline, color: Color(0xFFFFD166), size: 44),
               const SizedBox(height: 12),
-              Text('Offline mapa zatím není připravena.', textAlign: TextAlign.center, style: Theme.of(context).textTheme.titleMedium),
+              Text(
+                'Soubor offline mapy existuje, ale nepodařilo se vykreslit vektorové dlaždice.',
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
               const SizedBox(height: 8),
-              const Text('Použijte online mapu. Body pomoci a návody zůstávají dostupné.', textAlign: TextAlign.center),
+              const Text('Zkontrolujte renderer, styl a TMS/XYZ schéma.', textAlign: TextAlign.center),
+              if (error != null && error!.isNotEmpty) ...[
+                const SizedBox(height: 10),
+                Text(error!, textAlign: TextAlign.center, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: const Color(0xFFD6D9DE))),
+              ],
             ],
           ),
         ),
@@ -585,7 +813,6 @@ class _OfflineMapUnavailable extends StatelessWidget {
     );
   }
 }
-
 class _MapModeSelector extends StatelessWidget {
   const _MapModeSelector({required this.mode, required this.onChanged});
 
@@ -606,17 +833,22 @@ class _MapModeSelector extends StatelessWidget {
 }
 
 class _MapModeNotice extends StatelessWidget {
-  const _MapModeNotice({required this.mode});
+  const _MapModeNotice({required this.mode, required this.offlineMapError});
 
   final MapMode mode;
+  final String? offlineMapError;
 
   @override
   Widget build(BuildContext context) {
+    final text = mode == MapMode.offlineMap && offlineMapError != null
+        ? 'Offline mapa se nepodařila vykreslit. Online mapa zůstává dostupná jako záloha.'
+        : mode.czechDescription;
+
     return Card(
       color: mode == MapMode.offlineMap ? const Color(0xFF3A2E12) : const Color(0xFF101820),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        child: Text(mode.czechDescription, style: Theme.of(context).textTheme.bodyMedium),
+        child: Text(text, style: Theme.of(context).textTheme.bodyMedium),
       ),
     );
   }
