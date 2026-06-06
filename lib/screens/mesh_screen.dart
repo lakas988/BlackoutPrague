@@ -5,8 +5,11 @@ import 'package:flutter/material.dart';
 
 import '../models/emergency_message.dart';
 import '../services/demo_mode_service.dart';
+import '../services/mesh_foreground_service.dart';
+import '../services/mesh_settings_service.dart';
 import '../services/message_service.dart';
 import '../services/real_ble_mesh_service.dart';
+import 'settings_screen.dart';
 
 enum _MessageSection {
   incoming,
@@ -25,6 +28,8 @@ class _MeshScreenState extends State<MeshScreen> {
   final _messageService = MessageService.instance;
   final _realBleMeshService = RealBleMeshService.instance;
   final _demoModeService = DemoModeService.instance;
+  final _meshSettingsService = MeshSettingsService.instance;
+  final _meshForegroundService = MeshForegroundService.instance;
   final _random = math.Random();
 
   Timer? _incomingTimer;
@@ -33,6 +38,8 @@ class _MeshScreenState extends State<MeshScreen> {
   final _customMessageController = TextEditingController();
   bool _isSimulationActive = false;
   bool _isDemoModeEnabled = false;
+  bool _backgroundMeshEnabled = false;
+  bool _notificationsEnabled = false;
   int _nearbyNodeCount = 0;
   _MessageSection _selectedSection = _MessageSection.incoming;
 
@@ -42,6 +49,8 @@ class _MeshScreenState extends State<MeshScreen> {
     _messageService.addListener(_refreshMessages);
     _realBleMeshService.addListener(_refreshMessages);
     _demoModeService.addListener(_syncDemoMode);
+    _meshSettingsService.addListener(_syncMeshSettings);
+    _meshForegroundService.addListener(_refreshMessages);
     _customMessageController.addListener(_refreshMessages);
     _loadMeshState();
   }
@@ -52,6 +61,8 @@ class _MeshScreenState extends State<MeshScreen> {
     _messageService.removeListener(_refreshMessages);
     _realBleMeshService.removeListener(_refreshMessages);
     _demoModeService.removeListener(_syncDemoMode);
+    _meshSettingsService.removeListener(_syncMeshSettings);
+    _meshForegroundService.removeListener(_refreshMessages);
     _customMessageController.removeListener(_refreshMessages);
     _customMessageController.dispose();
     super.dispose();
@@ -81,6 +92,9 @@ class _MeshScreenState extends State<MeshScreen> {
             permissionStatus: _realBleMeshService.permissionStatus,
             isScanning: _realBleMeshService.isScanning,
             isAdvertising: _realBleMeshService.isAdvertising,
+            isBackgroundEnabled: _backgroundMeshEnabled,
+            isForegroundServiceRunning: _meshForegroundService.isRunning,
+            notificationsEnabled: _notificationsEnabled,
             receivedCount: _realBleMeshService.receivedCount,
             lastError: _realBleMeshService.lastError,
           ),
@@ -100,6 +114,15 @@ class _MeshScreenState extends State<MeshScreen> {
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: const Color(0xFFC7D0DC)),
             ),
           ],
+          const SizedBox(height: 8),
+          SizedBox(
+            height: 48,
+            child: OutlinedButton.icon(
+              onPressed: _openMeshSettings,
+              icon: const Icon(Icons.settings_outlined),
+              label: const Text('Otevřít nastavení mesh'),
+            ),
+          ),
           const SizedBox(height: 16),
           _CustomTextMessageCard(
             controller: _customMessageController,
@@ -145,6 +168,8 @@ class _MeshScreenState extends State<MeshScreen> {
   Future<void> _loadMeshState() async {
     await _messageService.loadMessages();
     await _demoModeService.load();
+    await _meshSettingsService.load();
+    await _meshForegroundService.refreshStatus();
     if (_demoModeService.isEnabled) {
       await _messageService.addDemoMessagesIfNeeded();
     } else {
@@ -153,7 +178,11 @@ class _MeshScreenState extends State<MeshScreen> {
     if (!mounted) {
       return;
     }
-    setState(() => _isDemoModeEnabled = _demoModeService.isEnabled);
+    setState(() {
+      _isDemoModeEnabled = _demoModeService.isEnabled;
+      _backgroundMeshEnabled = _meshSettingsService.backgroundMeshEnabled;
+      _notificationsEnabled = _meshSettingsService.notificationsEnabled;
+    });
   }
 
   void _syncDemoMode() {
@@ -177,6 +206,17 @@ class _MeshScreenState extends State<MeshScreen> {
       _incomingTimer = null;
       _messageService.clearDemoMessages();
     }
+  }
+
+  void _syncMeshSettings() {
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _backgroundMeshEnabled = _meshSettingsService.backgroundMeshEnabled;
+      _notificationsEnabled = _meshSettingsService.notificationsEnabled;
+    });
   }
 
   List<EmergencyMessage> _visibleMessages(List<EmergencyMessage> messages) {
@@ -249,15 +289,19 @@ class _MeshScreenState extends State<MeshScreen> {
     }
   }
 
+  void _openMeshSettings() {
+    Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const SettingsScreen()));
+  }
+
   Future<void> _sendCustomTextMessage() async {
     final text = _customMessageController.text.trim();
     if (text.isEmpty) {
-      _showSnackBar('Zadejte zpr?vu.');
+      _showSnackBar('Zadejte zprávu.');
       return;
     }
 
     if (text.runes.length > _customMessageMaxLength) {
-      _showSnackBar('Zpr?va je p??li? dlouh? pro BLE mesh. Zkra?te ji na 40 znak?.');
+      _showSnackBar('Zpráva je příliš dlouhá pro BLE mesh. Zkraťte ji na 40 znaků.');
       return;
     }
 
@@ -276,11 +320,11 @@ class _MeshScreenState extends State<MeshScreen> {
 
     if (_realBleMeshService.isEnabled) {
       final wasBroadcast = await _realBleMeshService.broadcastMessage(message);
-      _showSnackBar(wasBroadcast ? 'Zpr?va se vys?l? p?es BLE mesh.' : (_realBleMeshService.lastError ?? 'Zpr?vu se nepoda?ilo odeslat p?es BLE mesh.'));
+      _showSnackBar(wasBroadcast ? 'Zpráva se vysílá přes BLE mesh.' : (_realBleMeshService.lastError ?? 'Zprávu se nepodařilo odeslat přes BLE mesh.'));
       return;
     }
 
-    _showSnackBar('Zpr?va je ulo?en?. Pro odesl?n? zapn?te BLE mesh.');
+    _showSnackBar('Zpráva je uložená. Pro odeslání zapněte BLE mesh.');
   }
 
   void _scheduleIncomingSample() {
@@ -508,14 +552,14 @@ class _CustomTextMessageCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Odeslat textovou zpr?vu', style: Theme.of(context).textTheme.titleLarge),
+            Text('Odeslat textovou zprávu', style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: 10),
             TextField(
               controller: controller,
               minLines: 1,
               maxLines: 2,
               decoration: const InputDecoration(
-                hintText: 'Kr?tk? zpr?va...',
+                hintText: 'Krátká zpráva...',
                 prefixIcon: Icon(Icons.chat_bubble_outline),
               ),
             ),
@@ -524,7 +568,7 @@ class _CustomTextMessageCard extends StatelessWidget {
               children: [
                 Expanded(
                   child: Text(
-                    'Nap?. Jsme v po??dku, Pot?ebuji vodu, L?ky nutn?.',
+                    'Např. Jsme v pořádku, Potřebuji vodu, Léky nutné.',
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
                 ),
@@ -540,7 +584,7 @@ class _CustomTextMessageCard extends StatelessWidget {
             if (isTooLong) ...[
               const SizedBox(height: 8),
               Text(
-                'Zpr?va je p??li? dlouh? pro BLE mesh. Zkra?te ji na 40 znak?.',
+                'Zpráva je příliš dlouhá pro BLE mesh. Zkraťte ji na 40 znaků.',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(color: const Color(0xFFFF4B4B)),
               ),
             ],
@@ -618,6 +662,9 @@ class _RealBleStatusCard extends StatelessWidget {
     required this.permissionStatus,
     required this.isScanning,
     required this.isAdvertising,
+    required this.isBackgroundEnabled,
+    required this.isForegroundServiceRunning,
+    required this.notificationsEnabled,
     required this.receivedCount,
     required this.lastError,
   });
@@ -626,6 +673,9 @@ class _RealBleStatusCard extends StatelessWidget {
   final String permissionStatus;
   final bool isScanning;
   final bool isAdvertising;
+  final bool isBackgroundEnabled;
+  final bool isForegroundServiceRunning;
+  final bool notificationsEnabled;
   final int receivedCount;
   final String? lastError;
 
@@ -648,6 +698,8 @@ class _RealBleStatusCard extends StatelessWidget {
             _StatusLine(label: 'Oprávnění', value: permissionStatus),
             _StatusLine(label: 'Příjem zpráv', value: isScanning ? 'aktivní' : 'neaktivní'),
             _StatusLine(label: 'Odesílání', value: isAdvertising ? 'aktivní' : 'neaktivní'),
+            _StatusLine(label: 'Běh na pozadí', value: isBackgroundEnabled ? (isForegroundServiceRunning ? 'aktivní' : 'povolen') : 'vypnut'),
+            _StatusLine(label: 'Oznámení', value: notificationsEnabled ? 'povolena' : 'vypnuta'),
             _StatusLine(label: 'Přijaté zprávy', value: '$receivedCount'),
             if (lastError != null) ...[
               const SizedBox(height: 6),
@@ -790,7 +842,7 @@ class _MessageCard extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(message.isCustomTextMessage ? 'Textov? zpr?va' : message.type.czechLabel, style: Theme.of(context).textTheme.titleLarge),
+                        Text(message.isCustomTextMessage ? 'Textová zpráva' : message.type.czechLabel, style: Theme.of(context).textTheme.titleLarge),
                         const SizedBox(height: 6),
                         Text(message.text, style: Theme.of(context).textTheme.bodyLarge),
                       ],

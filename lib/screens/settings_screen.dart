@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 
 import '../services/demo_mode_service.dart';
+import '../services/mesh_foreground_service.dart';
+import '../services/mesh_notification_service.dart';
+import '../services/mesh_settings_service.dart';
 import '../services/message_service.dart';
+import '../services/real_ble_mesh_service.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -13,19 +17,28 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   final _demoModeService = DemoModeService.instance;
   final _messageService = MessageService.instance;
+  final _meshSettingsService = MeshSettingsService.instance;
+  final _realBleMeshService = RealBleMeshService.instance;
+  final _meshForegroundService = MeshForegroundService.instance;
+  final _meshNotificationService = MeshNotificationService.instance;
 
   bool _isDemoModeEnabled = false;
+  bool _autoStartBleMesh = false;
+  bool _backgroundMeshEnabled = false;
+  bool _notificationsEnabled = false;
 
   @override
   void initState() {
     super.initState();
     _demoModeService.addListener(_syncDemoMode);
-    _loadDemoMode();
+    _meshSettingsService.addListener(_syncMeshSettings);
+    _loadSettings();
   }
 
   @override
   void dispose() {
     _demoModeService.removeListener(_syncDemoMode);
+    _meshSettingsService.removeListener(_syncMeshSettings);
     super.dispose();
   }
 
@@ -67,10 +80,49 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ],
             ),
             const SizedBox(height: 14),
-            const _SettingsSection(
-              icon: Icons.bluetooth_connected_outlined,
-              title: 'Mesh / Bluetooth',
-              description: 'Reálný Bluetooth mesh slouží k předávání krátkých krizových zpráv mezi zařízeními. Bluetooth mesh je dostupný jako prototyp pro Android zařízení.',
+            _SettingsSection(
+              icon: Icons.hub_outlined,
+              title: 'Krizový mesh režim',
+              description: 'Reálný Bluetooth mesh slouží k předávání krátkých krizových zpráv mezi zařízeními.',
+              children: [
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Spustit BLE mesh při otevření aplikace'),
+                  value: _autoStartBleMesh,
+                  onChanged: _setAutoStartBleMesh,
+                ),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Povolit běh BLE mesh na pozadí'),
+                  value: _backgroundMeshEnabled,
+                  onChanged: _setBackgroundMeshEnabled,
+                ),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Zobrazovat oznámení o přijatých zprávách'),
+                  value: _notificationsEnabled,
+                  onChanged: _setNotificationsEnabled,
+                ),
+                const SizedBox(height: 8),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: _requestBluetoothMeshPermission,
+                    icon: const Icon(Icons.bluetooth_searching_outlined),
+                    label: const Text('Povolit Bluetooth mesh'),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  'Běh na pozadí je experimentální. Pro spolehlivý příjem ponechte aplikaci otevřenou a povolte běh na pozadí v nastavení telefonu.',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Pro spolehlivý příjem zpráv může být potřeba vypnout optimalizaci baterie pro tuto aplikaci.',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ],
             ),
             const SizedBox(height: 14),
             const _SettingsSection(
@@ -90,17 +142,33 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Future<void> _loadDemoMode() async {
+  Future<void> _loadSettings() async {
     await _demoModeService.load();
+    await _meshSettingsService.load();
     if (!mounted) {
       return;
     }
-    setState(() => _isDemoModeEnabled = _demoModeService.isEnabled);
+    setState(() {
+      _isDemoModeEnabled = _demoModeService.isEnabled;
+      _autoStartBleMesh = _meshSettingsService.autoStartBleMesh;
+      _backgroundMeshEnabled = _meshSettingsService.backgroundMeshEnabled;
+      _notificationsEnabled = _meshSettingsService.notificationsEnabled;
+    });
   }
 
   void _syncDemoMode() {
     if (mounted) {
       setState(() => _isDemoModeEnabled = _demoModeService.isEnabled);
+    }
+  }
+
+  void _syncMeshSettings() {
+    if (mounted) {
+      setState(() {
+        _autoStartBleMesh = _meshSettingsService.autoStartBleMesh;
+        _backgroundMeshEnabled = _meshSettingsService.backgroundMeshEnabled;
+        _notificationsEnabled = _meshSettingsService.notificationsEnabled;
+      });
     }
   }
 
@@ -116,9 +184,52 @@ class _SettingsScreenState extends State<SettingsScreen> {
       return;
     }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(enabled ? 'Demo režim je zapnutý.' : 'Demo režim je vypnutý.')),
-    );
+    _showSnackBar(enabled ? 'Demo režim je zapnutý.' : 'Demo režim je vypnutý.');
+  }
+
+  Future<void> _setAutoStartBleMesh(bool enabled) async {
+    await _meshSettingsService.setAutoStartBleMesh(enabled);
+    if (enabled) {
+      final granted = await _realBleMeshService.requestBluetoothPermissions();
+      if (!granted && mounted) {
+        _showSnackBar('BLE mesh nelze spustit bez oprávnění Bluetooth.');
+      }
+    }
+  }
+
+  Future<void> _setBackgroundMeshEnabled(bool enabled) async {
+    await _meshSettingsService.setBackgroundMeshEnabled(enabled);
+    if (enabled && _realBleMeshService.isEnabled) {
+      await _realBleMeshService.updateForegroundServiceForSettings();
+      if (_meshForegroundService.lastError != null && mounted) {
+        _showSnackBar(_meshForegroundService.lastError!);
+      }
+    } else {
+      await _realBleMeshService.updateForegroundServiceForSettings();
+    }
+  }
+
+  Future<void> _setNotificationsEnabled(bool enabled) async {
+    if (enabled) {
+      final granted = await _meshNotificationService.requestPermission();
+      if (!granted) {
+        if (mounted) {
+          _showSnackBar('Oznámení nejsou povolena.');
+        }
+        return;
+      }
+    }
+
+    await _meshSettingsService.setNotificationsEnabled(enabled);
+  }
+
+  Future<void> _requestBluetoothMeshPermission() async {
+    final granted = await _realBleMeshService.requestBluetoothPermissions();
+    if (!mounted) {
+      return;
+    }
+
+    _showSnackBar(granted ? 'Bluetooth mesh je povolený.' : 'BLE mesh nelze spustit bez oprávnění Bluetooth.');
   }
 
   Future<void> _resetDemoData() async {
@@ -128,9 +239,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
       return;
     }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Demo data byla resetována. Profil uživatele zůstal beze změny.')),
-    );
+    _showSnackBar('Demo data byla resetována. Profil uživatele zůstal beze změny.');
+  }
+
+  void _showSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
   }
 }
 

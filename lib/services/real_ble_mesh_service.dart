@@ -10,6 +10,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/emergency_message.dart';
 import 'device_id_service.dart';
+import 'mesh_foreground_service.dart';
+import 'mesh_notification_service.dart';
+import 'mesh_settings_service.dart';
 import 'message_service.dart';
 
 class RealBleMeshService extends ChangeNotifier {
@@ -24,6 +27,9 @@ class RealBleMeshService extends ChangeNotifier {
   final FlutterBlePeripheral _peripheral = FlutterBlePeripheral();
   final MessageService _messageService = MessageService.instance;
   final DeviceIdService _deviceIdService = DeviceIdService.instance;
+  final MeshSettingsService _meshSettingsService = MeshSettingsService.instance;
+  final MeshForegroundService _meshForegroundService = MeshForegroundService.instance;
+  final MeshNotificationService _meshNotificationService = MeshNotificationService.instance;
   final Map<String, DateTime> _seenMessageIds = <String, DateTime>{};
 
   StreamSubscription<List<ScanResult>>? _scanSubscription;
@@ -45,6 +51,18 @@ class RealBleMeshService extends ChangeNotifier {
   int get receivedCount => _receivedCount;
   String get permissionStatus => _permissionStatus;
   String? get lastError => _lastError;
+
+  Future<bool> hasBluetoothPermissions() async {
+    if (kIsWeb || !Platform.isAndroid) {
+      return false;
+    }
+
+    final scanGranted = await Permission.bluetoothScan.isGranted;
+    final advertiseGranted = await Permission.bluetoothAdvertise.isGranted;
+    final connectGranted = await Permission.bluetoothConnect.isGranted;
+    final locationGranted = await Permission.locationWhenInUse.isGranted;
+    return scanGranted && advertiseGranted && connectGranted && locationGranted;
+  }
 
   Future<bool> requestBluetoothPermissions() async {
     if (kIsWeb || !Platform.isAndroid) {
@@ -82,24 +100,38 @@ class RealBleMeshService extends ChangeNotifier {
     }
   }
 
-  Future<void> startRealBle() async {
+  Future<void> startRealBle({bool requestPermissions = true}) async {
     _isEnabled = true;
     notifyListeners();
 
-    final granted = await requestBluetoothPermissions();
+    final granted = requestPermissions ? await requestBluetoothPermissions() : await hasBluetoothPermissions();
     if (!granted) {
+      _permissionStatus = 'Nepovoleno';
+      _lastError = 'BLE mesh nelze spustit bez oprávnění Bluetooth.';
       await stopScan();
+      notifyListeners();
       return;
     }
 
     await startScan();
+    await updateForegroundServiceForSettings();
   }
 
   Future<void> stopRealBle() async {
     _isEnabled = false;
     await stopScan();
     await stopAdvertising();
+    await _meshForegroundService.stop();
     notifyListeners();
+  }
+
+  Future<void> updateForegroundServiceForSettings() async {
+    await _meshSettingsService.load();
+    if (_isEnabled && _isScanning && _meshSettingsService.backgroundMeshEnabled) {
+      await _meshForegroundService.start();
+    } else {
+      await _meshForegroundService.stop();
+    }
   }
 
   Future<void> startScan() async {
@@ -304,6 +336,10 @@ class RealBleMeshService extends ChangeNotifier {
     if (added) {
       debugPrint('BLE mesh: message accepted ${parsed.messageId}');
       _receivedCount += 1;
+      await _meshSettingsService.load();
+      if (_meshSettingsService.notificationsEnabled) {
+        await _meshNotificationService.showIncomingMessage(message);
+      }
       notifyListeners();
     } else {
       debugPrint('BLE mesh: duplicate ignored ${parsed.messageId}');

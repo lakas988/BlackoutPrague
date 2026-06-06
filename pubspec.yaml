@@ -48,6 +48,8 @@ dependencies:
   vector_tile_renderer: ^5.2.1
   mbtiles: ^0.4.2
   sqlite3_flutter_libs: ^0.5.42
+  flutter_local_notifications: ^21.0.0
+  flutter_foreground_task: ^9.2.2
 
 dev_dependencies:
   flutter_test:

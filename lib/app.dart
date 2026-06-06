@@ -8,7 +8,9 @@ import 'screens/mesh_screen.dart';
 import 'screens/onboarding_screen.dart';
 import 'screens/profile_screen.dart';
 import 'screens/settings_screen.dart';
+import 'services/mesh_settings_service.dart';
 import 'services/profile_storage_service.dart';
+import 'services/real_ble_mesh_service.dart';
 import 'theme/app_theme.dart';
 
 class BlackoutPragueApp extends StatelessWidget {
@@ -61,6 +63,12 @@ class _BlackoutPragueShellState extends State<BlackoutPragueShell> {
   int _mapFocusNonce = 0;
 
   static const _titles = <String>['Domů', 'Mapa', 'Pomoc', 'Návody', 'Mesh'];
+
+  @override
+  void initState() {
+    super.initState();
+    _autoStartMeshIfEnabled();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -123,5 +131,15 @@ class _BlackoutPragueShellState extends State<BlackoutPragueShell> {
 
   void _selectTab(int index) {
     setState(() => _selectedIndex = index);
+  }
+
+  Future<void> _autoStartMeshIfEnabled() async {
+    final settings = MeshSettingsService.instance;
+    await settings.load();
+    if (!settings.autoStartBleMesh) {
+      return;
+    }
+
+    await RealBleMeshService.instance.startRealBle(requestPermissions: false);
   }
 }
