@@ -26,7 +26,16 @@ class MapScreen extends StatefulWidget {
 }
 
 class _MapScreenState extends State<MapScreen> {
-  static const _defaultPragueCenter = LatLng(50.0855, 14.427);
+  static const _defaultPragueCenter = LatLng(50.0755, 14.4378);
+  static final _pragueBounds = LatLngBounds.unsafe(
+    west: 14.15,
+    south: 49.85,
+    east: 14.80,
+    north: 50.25,
+  );
+  static const _defaultMapZoom = 13.0;
+  static const _minMapZoom = 10.0;
+  static const _maxMapZoom = 19.0;
 
   final _locationService = LocationService();
   final _selectedAreaService = SelectedAreaService();
@@ -422,7 +431,7 @@ class _MapScreenState extends State<MapScreen> {
 
   void _moveMapToPoint(HelpPoint point) {
     try {
-      _mapController.move(LatLng(point.latitude, point.longitude), _mapMode == MapMode.offlineMap ? 14 : 14.8);
+      _mapController.move(LatLng(point.latitude, point.longitude), 15.5);
     } catch (_) {
       // MapController nemusí být připravený při prvním vykreslení obrazovky.
     }
@@ -581,9 +590,14 @@ class _OnlineHelpMap extends StatelessWidget {
       mapController: controller,
       options: MapOptions(
         initialCenter: center,
-        initialZoom: selectedPoint == null ? (lastKnownLocation == null ? 12 : 14) : 14.8,
-        minZoom: 10,
-        maxZoom: 18,
+        initialZoom: selectedPoint == null
+            ? (lastKnownLocation == null ? _MapScreenState._defaultMapZoom : 14)
+            : 15.5,
+        minZoom: _MapScreenState._minMapZoom,
+        maxZoom: _MapScreenState._maxMapZoom,
+        cameraConstraint: CameraConstraint.containCenter(
+          bounds: _MapScreenState._pragueBounds,
+        ),
       ),
       children: [
         TileLayer(
@@ -682,9 +696,10 @@ class _OfflineVectorHelpMap extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final defaultZoom = offlineMap.metadata.defaultZoom ?? 14;
-    final initialZoom = (selectedPoint == null ? defaultZoom : offlineMap.maxZoom.toDouble())
-        .clamp(offlineMap.minZoom.toDouble(), offlineMap.maxZoom.toDouble())
+    final initialZoom = (selectedPoint == null
+            ? _MapScreenState._defaultMapZoom
+            : 15.5)
+        .clamp(_MapScreenState._minMapZoom, _MapScreenState._maxMapZoom)
         .toDouble();
 
     return FlutterMap(
@@ -692,16 +707,19 @@ class _OfflineVectorHelpMap extends StatelessWidget {
       options: MapOptions(
         initialCenter: center,
         initialZoom: initialZoom,
-        minZoom: offlineMap.minZoom.toDouble(),
-        maxZoom: offlineMap.maxZoom.toDouble(),
+        minZoom: _MapScreenState._minMapZoom,
+        maxZoom: _MapScreenState._maxMapZoom,
+        cameraConstraint: CameraConstraint.containCenter(
+          bounds: _MapScreenState._pragueBounds,
+        ),
       ),
       children: [
         VectorTileLayer(
           tileProviders: TileProviders({'openmaptiles': offlineMap.provider}),
           theme: _theme,
           layerMode: VectorTileLayerMode.raster,
-          maximumZoom: offlineMap.maxZoom.toDouble(),
-          maximumTileSubstitutionDifference: 1,
+          maximumZoom: _MapScreenState._maxMapZoom,
+          maximumTileSubstitutionDifference: 3,
           showTileDebugInfo: false,
         ),
         if (lastKnownLocation != null && navigationPoint != null)

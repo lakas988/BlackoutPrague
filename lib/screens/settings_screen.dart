@@ -53,37 +53,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
             Text('Nastavení', style: Theme.of(context).textTheme.headlineMedium),
             const SizedBox(height: 8),
             Text(
-              'Volby pro krizový režim, soukromí a Bluetooth komunikaci.',
-              style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: const Color(0xFFC7D0DC)),
+              'Volby pro mesh síť, soukromí a prezentační režim aplikace.',
+              style: Theme.of(context)
+                  .textTheme
+                  .bodyLarge
+                  ?.copyWith(color: const Color(0xFFC7D0DC)),
             ),
             const SizedBox(height: 18),
             _SettingsSection(
-              icon: Icons.science_outlined,
-              title: 'Demo režim',
-              description: 'Demo režim zapíná ukázková data a simulované zprávy pro prezentaci.',
-              children: [
-                SwitchListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('Zapnout Demo režim'),
-                  value: _isDemoModeEnabled,
-                  onChanged: _setDemoMode,
-                ),
-                const SizedBox(height: 8),
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    onPressed: _resetDemoData,
-                    icon: const Icon(Icons.delete_outline),
-                    label: const Text('Resetovat demo data'),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 14),
-            _SettingsSection(
               icon: Icons.hub_outlined,
-              title: 'Krizový mesh režim',
-              description: 'Reálný Bluetooth mesh slouží k předávání krátkých krizových zpráv mezi zařízeními.',
+              title: 'Mesh síť',
+              description:
+                  'BLE mesh umožňuje přijímat a předávat krátké krizové zprávy mezi zařízeními bez internetu.',
               children: [
                 SwitchListTile(
                   contentPadding: EdgeInsets.zero,
@@ -109,7 +90,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   child: OutlinedButton.icon(
                     onPressed: _requestBluetoothMeshPermission,
                     icon: const Icon(Icons.bluetooth_searching_outlined),
-                    label: const Text('Povolit Bluetooth mesh'),
+                    label: const Text('Povolit oprávnění Bluetooth mesh'),
                   ),
                 ),
                 const SizedBox(height: 10),
@@ -119,22 +100,60 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Pro spolehlivý příjem zpráv může být potřeba vypnout optimalizaci baterie pro tuto aplikaci.',
+                  'Pro příjem zpráv může být potřeba vypnout optimalizaci baterie pro tuto aplikaci.',
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
               ],
             ),
             const SizedBox(height: 14),
             const _SettingsSection(
-              icon: Icons.lock_outline,
-              title: 'Soukromí',
-              description: 'Citlivé údaje z profilu zůstávají pouze v tomto zařízení.',
+              icon: Icons.app_settings_alt_outlined,
+              title: 'Aplikace',
+              description:
+                  'Jazyk aplikace je čeština. Citlivé údaje z profilu zůstávají pouze v tomto zařízení.',
+              children: [
+                _InfoLine(
+                  icon: Icons.translate_outlined,
+                  text: 'Jazyk: Čeština',
+                ),
+                _InfoLine(
+                  icon: Icons.lock_outline,
+                  text: 'Profil a krizové údaje se ukládají lokálně.',
+                ),
+              ],
             ),
             const SizedBox(height: 14),
-            const _SettingsSection(
-              icon: Icons.info_outline,
-              title: 'O aplikaci',
-              description: 'Blackout Prague je offline-first krizová aplikace pro výpadek elektřiny a přetížené mobilní sítě v Praze.',
+            _SettingsSection(
+              icon: Icons.more_horiz,
+              title: 'Více',
+              description:
+                  'Demo režim a technické informace pro prezentaci aplikace.',
+              children: [
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Zapnout Demo režim'),
+                  subtitle: const Text(
+                    'Demo režim zapíná ukázková data a simulované zprávy pro prezentaci.',
+                  ),
+                  value: _isDemoModeEnabled,
+                  onChanged: _setDemoMode,
+                ),
+                const SizedBox(height: 8),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: _resetDemoData,
+                    icon: const Icon(Icons.delete_outline),
+                    label: const Text('Resetovat demo data'),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                const _InfoLine(
+                  icon: Icons.info_outline,
+                  text:
+                      'Blackout Prague je offline-first krizová aplikace pro výpadek elektřiny a přetížené mobilní sítě v Praze.',
+                ),
+              ],
             ),
           ],
         ),
@@ -229,7 +248,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
       return;
     }
 
-    _showSnackBar(granted ? 'Bluetooth mesh je povolený.' : 'BLE mesh nelze spustit bez oprávnění Bluetooth.');
+    _showSnackBar(
+      granted
+          ? 'Bluetooth mesh je povolený.'
+          : 'BLE mesh nelze spustit bez oprávnění Bluetooth.',
+    );
   }
 
   Future<void> _resetDemoData() async {
@@ -273,7 +296,9 @@ class _SettingsSection extends StatelessWidget {
               children: [
                 Icon(icon, size: 30, color: const Color(0xFF00D1FF)),
                 const SizedBox(width: 12),
-                Expanded(child: Text(title, style: Theme.of(context).textTheme.titleLarge)),
+                Expanded(
+                  child: Text(title, style: Theme.of(context).textTheme.titleLarge),
+                ),
               ],
             ),
             const SizedBox(height: 10),
@@ -284,6 +309,28 @@ class _SettingsSection extends StatelessWidget {
             ],
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _InfoLine extends StatelessWidget {
+  const _InfoLine({required this.icon, required this.text});
+
+  final IconData icon;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 20, color: const Color(0xFF5CE7FF)),
+          const SizedBox(width: 10),
+          Expanded(child: Text(text)),
+        ],
       ),
     );
   }
