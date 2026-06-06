@@ -1,17 +1,85 @@
-# blackout_prague
+# Blackout Prague
 
-A new Flutter project.
+Blackout Prague je mobilní aplikace vytvořená ve Flutteru, která pomáhá lidem během krizových situací, hlavně při rozsáhlém výpadku elektřiny v Praze.
 
-## Getting Started
+Aplikace kombinuje přehledné nouzové informace, mapu důležitých míst, systém zásob, návody pro přežití a experimentální Bluetooth mesh komunikaci mezi zařízeními.
 
-This project is a starting point for a Flutter application.
+## Hlavní funkce
 
-A few resources to get you started if this is your first Flutter project:
+- Přehledná domovská obrazovka pro krizové situace
+- Mapa Prahy s důležitými body
+- Možnost spojovat body na mapě
+- Sekce s návody pro přežití při blackoutu
+- Přehled zásob a nouzového vybavení
+- Bluetooth mesh komunikace mezi zařízeními
+- Odesílání krátkých textových zpráv přes mesh síť
+- Přijaté, odeslané a všechny zprávy v přehledu
+- Automatické spuštění mesh sítě po otevření aplikace
+- Podpora běhu mesh sítě na pozadí přes Android foreground service
+- Moderní tmavé UI ve stylu krizové aplikace
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+## Cíl projektu
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+Cílem aplikace je ukázat, jak by mohla fungovat jednoduchá krizová aplikace pro město během blackoutu.
+
+V případě výpadku internetu nebo mobilní sítě může aplikace nabídnout základní informace, lokální návody a experimentální možnost komunikace mezi uživateli přes Bluetooth mesh síť.
+
+## Technologie
+
+Projekt je postavený na:
+
+- Flutter
+- Dart
+- Android
+- Bluetooth Low Energy
+- Foreground Service
+- SharedPreferences
+- Permission Handler
+- Offline-first principu
+
+## Bluetooth Mesh
+
+Aplikace obsahuje experimentální Bluetooth mesh systém.
+
+Zařízení mezi sebou mohou předávat krátké zprávy pomocí Bluetooth. Každá zpráva obsahuje unikátní ID, ID odesílatele, čas vytvoření a omezený počet přeposlání pomocí TTL.
+
+Díky tomu lze zabránit nekonečnému přeposílání stejných zpráv a zároveň umožnit šíření zpráv mezi více zařízeními.
+
+Mesh systém je určený hlavně pro nouzové krátké zprávy, například:
+
+- Jsem v pořádku
+- Potřebuji vodu
+- Potřebuji pomoc
+- Mám lékárničku
+- Potřebuji se spojit
+
+## Web demo
+
+Aplikace může mít také webové demo vytvořené pomocí Flutter Web.
+
+Webová verze slouží hlavně k ukázce designu, obrazovek a základního ovládání aplikace.
+
+Reálné funkce jako Bluetooth mesh síť, Android oprávnění, foreground service a běh na pozadí fungují pouze v Android aplikaci.
+
+## Android verze
+
+Pro plnou funkčnost je potřeba Android verze aplikace.
+
+Android verze podporuje:
+
+- Bluetooth oprávnění
+- Location oprávnění potřebné pro BLE skenování
+- Notifikace
+- Foreground service
+- Automatické spuštění mesh sítě
+- Běh mesh sítě na pozadí
+- Obnovení stavu po restartu aplikace
+
+## Instalace pro vývojáře
+
+Nejdříve je potřeba mít nainstalovaný Flutter SDK.
+
+Potom spusť:
+
+```bash
+flutter pub get
