@@ -83,3 +83,12 @@ Potom spusť:
 
 ```bash
 flutter pub get
+
+## AI Assistance
+
+Tento projekt byl vytvořen s využitím AI nástrojů.
+
+Na vývoji aplikace se podílel OpenAI Codex jako coding agent pro úpravy, generování a opravy kódu.  
+Návrh funkcí, technické konzultace, vysvětlení postupů a části dokumentace byly připravovány s pomocí ChatGPT, modelu GPT-5.5 Thinking.
+
+AI nástroje byly použity jako asistenti při vývoji. Finální rozhodnutí, testování a úpravy projektu byly prováděny autorem projektu.
