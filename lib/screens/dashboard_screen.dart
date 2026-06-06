@@ -3,12 +3,10 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 
 import '../data/prague_areas.dart';
-import '../models/app_power_mode.dart';
 import '../models/emergency_message.dart';
 import '../services/demo_mode_service.dart';
 import '../services/location_service.dart';
 import '../services/message_service.dart';
-import '../services/power_mode_service.dart';
 import '../services/real_ble_mesh_service.dart';
 import '../services/selected_area_service.dart';
 import '../theme/app_theme.dart';
@@ -28,7 +26,6 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
-  final _powerModeService = PowerModeService();
   final _battery = Battery();
   final _connectivity = Connectivity();
   final _messageService = MessageService.instance;
@@ -37,10 +34,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
   final _locationService = LocationService();
   final _selectedAreaService = SelectedAreaService();
 
-  AppPowerMode _powerMode = AppPowerMode.normal;
   String _batteryText = 'Baterie: nelze zjistit';
   String _connectionText = 'Stav sítě není dostupný';
-  bool _isLoadingMode = true;
   bool _isDemoModeEnabled = false;
   String _locationStatus = 'Poloha zatím není nastavena';
 
@@ -62,20 +57,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (_powerMode == AppPowerMode.ultra) {
-      return _UltraDashboard(
-        batteryText: _batteryText,
-        mode: _powerMode,
-        isLoadingMode: _isLoadingMode,
-        onModeChanged: _setPowerMode,
-        onCreateMessage: _createMessage,
-        onCreateSos: _confirmAndCreateSos,
-        onOpenFindHelp: widget.onOpenFindHelp,
-        onOpenGuides: widget.onOpenGuides,
-      );
-    }
-
-    final isBatterySaver = _powerMode == AppPowerMode.batterySaver;
     final connectionText = _isDemoModeEnabled ? 'Síť: přetížená / omezená' : _connectionText;
 
     return SafeArea(
@@ -96,25 +77,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
             const _DemoBanner(),
           ],
           const SizedBox(height: 18),
-          _PowerModeSelector(selectedMode: _powerMode, isEnabled: !_isLoadingMode, onChanged: _setPowerMode),
-          const SizedBox(height: 12),
           _StatusCard(icon: Icons.battery_5_bar_outlined, title: _batteryText, color: AppColors.safeGreen),
-          const SizedBox(height: 10),
-          _StatusCard(icon: Icons.power_settings_new_outlined, title: 'Režim baterie: ${_powerMode.czechLabel}', color: AppColors.primary),
           const SizedBox(height: 10),
           _StatusCard(icon: Icons.signal_cellular_alt_outlined, title: connectionText, color: _isDemoModeEnabled ? AppColors.warningOrange : AppColors.primaryLight),
           if (_isDemoModeEnabled) ...[
             const SizedBox(height: 10),
             const _StatusCard(icon: Icons.power_off_outlined, title: 'Stav: výpadek elektřiny simulován', color: AppColors.emergencyRed),
-            const SizedBox(height: 10),
-            const _StatusCard(icon: Icons.tips_and_updates_outlined, title: 'Doporučení: přepnout do úsporného režimu', color: AppColors.warningOrange),
           ],
           const SizedBox(height: 10),
           _StatusCard(icon: Icons.location_on_outlined, title: _locationStatus, color: AppColors.primary),
-          if (!isBatterySaver) ...[
-            const SizedBox(height: 10),
-            const _StatusCard(icon: Icons.offline_bolt_outlined, title: 'Offline režim připraven', color: AppColors.safeGreen),
-          ],
+          const SizedBox(height: 10),
+          const _StatusCard(icon: Icons.offline_bolt_outlined, title: 'Offline režim připraven', color: AppColors.safeGreen),
           const SizedBox(height: 24),
           _SosButton(onPressed: _confirmAndCreateSos),
           const SizedBox(height: 18),
@@ -168,7 +141,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Future<void> _loadDashboardState() async {
-    final mode = await _powerModeService.loadMode();
     final batteryText = await _loadBatteryText();
     final connectionText = await _loadConnectionText();
 
@@ -177,10 +149,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
 
     setState(() {
-      _powerMode = mode;
       _batteryText = batteryText;
       _connectionText = connectionText;
-      _isLoadingMode = false;
     });
   }
 
@@ -219,18 +189,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
       return 'Síť: VPN';
     }
     return 'Stav sítě není dostupný';
-  }
-
-  Future<void> _setPowerMode(AppPowerMode mode) async {
-    final changed = mode != _powerMode;
-    setState(() => _powerMode = mode);
-    await _powerModeService.saveMode(mode);
-
-    if (!mounted || !changed) {
-      return;
-    }
-
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(mode.description)));
   }
 
   Future<void> _createMessage(_QuickAction action) async {
@@ -323,111 +281,6 @@ class _DemoBanner extends StatelessWidget {
             SizedBox(width: 10),
             Text('Demo režim', style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w900)),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-class _PowerModeSelector extends StatelessWidget {
-  const _PowerModeSelector({required this.selectedMode, required this.isEnabled, required this.onChanged});
-
-  final AppPowerMode selectedMode;
-  final bool isEnabled;
-  final ValueChanged<AppPowerMode> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(10),
-        child: Row(
-          children: [
-            Expanded(
-              child: _PowerModeTile(
-                mode: AppPowerMode.normal,
-                selectedMode: selectedMode,
-                isEnabled: isEnabled,
-                icon: Icons.battery_full,
-                label: 'Normální',
-                onChanged: onChanged,
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: _PowerModeTile(
-                mode: AppPowerMode.batterySaver,
-                selectedMode: selectedMode,
-                isEnabled: isEnabled,
-                icon: Icons.eco_outlined,
-                label: 'Úsporný',
-                onChanged: onChanged,
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: _PowerModeTile(
-                mode: AppPowerMode.ultra,
-                selectedMode: selectedMode,
-                isEnabled: isEnabled,
-                icon: Icons.battery_alert_outlined,
-                label: 'Ultra',
-                onChanged: onChanged,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _PowerModeTile extends StatelessWidget {
-  const _PowerModeTile({
-    required this.mode,
-    required this.selectedMode,
-    required this.isEnabled,
-    required this.icon,
-    required this.label,
-    required this.onChanged,
-  });
-
-  final AppPowerMode mode;
-  final AppPowerMode selectedMode;
-  final bool isEnabled;
-  final IconData icon;
-  final String label;
-  final ValueChanged<AppPowerMode> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    final selected = mode == selectedMode;
-    return InkWell(
-      borderRadius: BorderRadius.circular(8),
-      onTap: isEnabled ? () => onChanged(mode) : null,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: selected ? AppColors.primary : AppColors.secondaryBackground,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: selected ? AppColors.primaryLight : AppColors.border),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 9),
-          child: Column(
-            children: [
-              Icon(icon, color: selected ? AppColors.background : AppColors.primaryLight, size: 24),
-              const SizedBox(height: 5),
-              Text(
-                label,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: selected ? AppColors.background : AppColors.textPrimary,
-                  fontWeight: FontWeight.w900,
-                  fontSize: 12,
-                ),
-              ),
-            ],
-          ),
         ),
       ),
     );
@@ -606,85 +459,4 @@ class _QuickAction {
   final int ttlMinutes;
   final bool opensFindHelp;
   final bool opensGuides;
-}
-
-class _UltraDashboard extends StatelessWidget {
-  const _UltraDashboard({
-    required this.batteryText,
-    required this.mode,
-    required this.isLoadingMode,
-    required this.onModeChanged,
-    required this.onCreateMessage,
-    required this.onCreateSos,
-    required this.onOpenFindHelp,
-    required this.onOpenGuides,
-  });
-
-  final String batteryText;
-  final AppPowerMode mode;
-  final bool isLoadingMode;
-  final ValueChanged<AppPowerMode> onModeChanged;
-  final ValueChanged<_QuickAction> onCreateMessage;
-  final VoidCallback onCreateSos;
-  final VoidCallback onOpenFindHelp;
-  final VoidCallback onOpenGuides;
-
-  @override
-  Widget build(BuildContext context) {
-    const okAction = _QuickAction(
-      Icons.check_circle_outline,
-      'Jsem v pořádku',
-      messageType: EmergencyMessageType.ok,
-      priority: EmergencyMessagePriority.low,
-      messageText: 'Jsem v pořádku.',
-      ttlMinutes: 240,
-    );
-
-    return SafeArea(
-      child: ListView(
-        padding: const EdgeInsets.fromLTRB(18, 10, 18, 22),
-        children: [
-          const Text(
-            'Blackout Prague',
-            style: TextStyle(fontSize: 28, fontWeight: FontWeight.w900, color: AppColors.textPrimary),
-          ),
-          const SizedBox(height: 14),
-          _PowerModeSelector(selectedMode: mode, isEnabled: !isLoadingMode, onChanged: onModeChanged),
-          const SizedBox(height: 14),
-          Text(batteryText, style: Theme.of(context).textTheme.headlineMedium),
-          const SizedBox(height: 18),
-          _SosButton(onPressed: onCreateSos),
-          const SizedBox(height: 16),
-          SizedBox(
-            height: 52,
-            child: OutlinedButton.icon(
-              onPressed: () => onCreateMessage(okAction),
-              icon: const Icon(Icons.check_circle_outline),
-              label: const Text('Jsem v pořádku'),
-            ),
-          ),
-          const SizedBox(height: 9),
-          SizedBox(
-            height: 52,
-            child: OutlinedButton.icon(
-              onPressed: onOpenFindHelp,
-              icon: const Icon(Icons.place_outlined),
-              label: const Text('Najít nejbližší pomoc'),
-            ),
-          ),
-          const SizedBox(height: 9),
-          SizedBox(
-            height: 52,
-            child: OutlinedButton.icon(
-              onPressed: onOpenGuides,
-              icon: const Icon(Icons.menu_book_outlined),
-              label: const Text('Návody'),
-            ),
-          ),
-          const SizedBox(height: 16),
-          const Text('Mesh: krátké krizové zprávy přes Bluetooth'),
-        ],
-      ),
-    );
-  }
 }

@@ -84,6 +84,9 @@ class EmergencyMessage {
     required this.isOutgoing,
     required this.isOutdated,
     this.isCustomTextMessage = false,
+    this.isProfileInfoMessage = false,
+    this.profileRoleCode,
+    this.profileFlags,
   });
 
   factory EmergencyMessage.fromJson(Map<String, dynamic> json) {
@@ -103,6 +106,9 @@ class EmergencyMessage {
       isOutgoing: json['isOutgoing'] as bool? ?? false,
       isOutdated: json['isOutdated'] as bool? ?? false,
       isCustomTextMessage: json['isCustomTextMessage'] as bool? ?? false,
+      isProfileInfoMessage: json['isProfileInfoMessage'] as bool? ?? false,
+      profileRoleCode: json['profileRoleCode'] as String?,
+      profileFlags: json['profileFlags'] as String?,
     );
   }
 
@@ -121,6 +127,9 @@ class EmergencyMessage {
   final bool isOutgoing;
   final bool isOutdated;
   final bool isCustomTextMessage;
+  final bool isProfileInfoMessage;
+  final String? profileRoleCode;
+  final String? profileFlags;
 
   bool get isExpired => DateTime.now().difference(createdAt).inMinutes >= ttlMinutes;
   bool get isDemo => id.startsWith('demo_');
@@ -143,6 +152,9 @@ class EmergencyMessage {
       'isOutgoing': isOutgoing,
       'isOutdated': isOutdated,
       'isCustomTextMessage': isCustomTextMessage,
+      'isProfileInfoMessage': isProfileInfoMessage,
+      'profileRoleCode': profileRoleCode,
+      'profileFlags': profileFlags,
     };
   }
 
@@ -152,6 +164,9 @@ class EmergencyMessage {
     int? verifiedCount,
     bool? isOutdated,
     bool? isCustomTextMessage,
+    bool? isProfileInfoMessage,
+    String? profileRoleCode,
+    String? profileFlags,
   }) {
     return EmergencyMessage(
       id: id,
@@ -169,6 +184,9 @@ class EmergencyMessage {
       isOutgoing: isOutgoing,
       isOutdated: isOutdated ?? this.isOutdated,
       isCustomTextMessage: isCustomTextMessage ?? this.isCustomTextMessage,
+      isProfileInfoMessage: isProfileInfoMessage ?? this.isProfileInfoMessage,
+      profileRoleCode: profileRoleCode ?? this.profileRoleCode,
+      profileFlags: profileFlags ?? this.profileFlags,
     );
   }
 }

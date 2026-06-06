@@ -311,7 +311,9 @@ class RealBleMeshService extends ChangeNotifier {
       id: parsed.messageId,
       originDeviceId: parsed.originDeviceId,
       type: parsed.type,
-      text: parsed.text ?? _incomingText(parsed.type),
+      text: parsed.isProfileInfoMessage
+          ? _profileInfoText(parsed.profileRoleCode ?? 'CIT', parsed.profileFlags ?? '-', parsed.areaName)
+          : parsed.text ?? _incomingText(parsed.type),
       createdAt: parsed.createdAt,
       senderAlias: 'BLE uzel',
       approximateArea: parsed.areaName,
@@ -323,6 +325,9 @@ class RealBleMeshService extends ChangeNotifier {
       isOutgoing: false,
       isOutdated: false,
       isCustomTextMessage: parsed.isCustomTextMessage,
+      isProfileInfoMessage: parsed.isProfileInfoMessage,
+      profileRoleCode: parsed.profileRoleCode,
+      profileFlags: parsed.profileFlags,
     );
 
     if (message.isExpired) {
@@ -371,6 +376,18 @@ class RealBleMeshService extends ChangeNotifier {
   }
 
   String _encodeMessage(EmergencyMessage message) {
+    if (message.isProfileInfoMessage) {
+      final area = _areaCode(message.approximateArea);
+      final role = _compactToken(message.profileRoleCode ?? 'CIT', fallback: 'CIT');
+      final flags = _profileFlagsToken(message.profileFlags ?? '-');
+      final time = _timeCode(message.createdAt);
+      final origin = _compactToken(message.originDeviceId, fallback: 'DX');
+      final messageId = _compactToken(message.id, fallback: 'MSG');
+      final hop = message.hopCount.clamp(0, message.maxHops);
+      final max = message.maxHops.clamp(1, 9);
+      return 'BP|PROF|$area|$role|$flags|$time|$origin|$messageId|$hop|$max';
+    }
+
     final type = message.isCustomTextMessage ? 'TXT' : _protocolType(message.type);
     final area = _areaCode(message.approximateArea);
     final time = _timeCode(message.createdAt);
@@ -392,6 +409,14 @@ class RealBleMeshService extends ChangeNotifier {
       return clean;
     }
     return String.fromCharCodes(runes.take(40));
+  }
+
+  String _profileFlagsToken(String value) {
+    final compact = value.toUpperCase().replaceAll(RegExp('[^MCSP-]'), '');
+    if (compact.isEmpty) {
+      return '-';
+    }
+    return compact.length <= 4 ? compact : compact.substring(0, 4);
   }
 
   String _compactToken(String value, {required String fallback}) {
@@ -438,6 +463,26 @@ class RealBleMeshService extends ChangeNotifier {
       EmergencyMessageType.danger => 'Hlášeno nebezpečí v okolí.',
       EmergencyMessageType.info => 'Krizová informace z BLE mesh.',
     };
+  }
+
+  String _profileInfoText(String roleCode, String flags, String areaName) {
+    final role = switch (roleCode.toUpperCase()) {
+      'VOL' => 'Dobrovolník',
+      'MED' => 'Zdravotník',
+      'FIR' => 'Hasič',
+      'POL' => 'Policista',
+      'TEC' => 'Technik',
+      _ => 'Obyvatel',
+    };
+    final normalizedFlags = flags.toUpperCase();
+    final needs = <String>[
+      if (normalizedFlags.contains('M')) 'léky',
+      if (normalizedFlags.contains('C')) 'děti',
+      if (normalizedFlags.contains('S')) 'senior',
+      if (normalizedFlags.contains('P')) 'mazlíček',
+    ];
+    final needsText = needs.isEmpty ? 'bez zvláštních příznaků' : needs.join(', ');
+    return 'Profilová informace: $role, $areaName, $needsText.';
   }
 
   EmergencyMessagePriority _priorityForType(EmergencyMessageType type) {
@@ -531,7 +576,10 @@ class _ParsedBleMessage {
     required this.hopCount,
     required this.maxHops,
     required this.isCustomTextMessage,
+    required this.isProfileInfoMessage,
     this.text,
+    this.profileRoleCode,
+    this.profileFlags,
   });
 
   final EmergencyMessageType type;
@@ -542,12 +590,19 @@ class _ParsedBleMessage {
   final int hopCount;
   final int maxHops;
   final bool isCustomTextMessage;
+  final bool isProfileInfoMessage;
   final String? text;
+  final String? profileRoleCode;
+  final String? profileFlags;
 
   static _ParsedBleMessage? tryParse(String payload) {
     final parts = payload.split('|');
     if (parts.firstOrNull != 'BP') {
       return null;
+    }
+
+    if (parts.length == 10 && parts[1] == 'PROF') {
+      return _parseProfile(parts);
     }
 
     if (parts.length == 8 || parts.length == 9) {
@@ -580,7 +635,31 @@ class _ParsedBleMessage {
       hopCount: hopCount,
       maxHops: maxHops,
       isCustomTextMessage: isTextMessage,
+      isProfileInfoMessage: false,
       text: isTextMessage && parts.length == 9 ? parts[8] : null,
+    );
+  }
+
+  static _ParsedBleMessage? _parseProfile(List<String> parts) {
+    final createdAt = _createdAtFromTimeCode(parts[5]);
+    final hopCount = int.tryParse(parts[8]);
+    final maxHops = int.tryParse(parts[9]);
+    if (createdAt == null || parts[6].isEmpty || parts[7].isEmpty || hopCount == null || maxHops == null) {
+      return null;
+    }
+
+    return _ParsedBleMessage(
+      type: EmergencyMessageType.info,
+      areaName: _areaNameFromCode(parts[2]),
+      createdAt: createdAt,
+      originDeviceId: parts[6].toUpperCase(),
+      messageId: parts[7].toUpperCase(),
+      hopCount: hopCount,
+      maxHops: maxHops,
+      isCustomTextMessage: false,
+      isProfileInfoMessage: true,
+      profileRoleCode: parts[3].toUpperCase(),
+      profileFlags: parts[4].toUpperCase(),
     );
   }
 
@@ -601,6 +680,7 @@ class _ParsedBleMessage {
       hopCount: hopCount,
       maxHops: 5,
       isCustomTextMessage: false,
+      isProfileInfoMessage: false,
     );
   }
 

@@ -7,11 +7,12 @@ class PowerModeService {
 
   Future<AppPowerMode> loadMode() async {
     final preferences = await SharedPreferences.getInstance();
-    return AppPowerModeLabel.fromStorageValue(preferences.getString(_powerModeKey));
+    await preferences.setString(_powerModeKey, AppPowerMode.normal.storageValue);
+    return AppPowerMode.normal;
   }
 
   Future<void> saveMode(AppPowerMode mode) async {
     final preferences = await SharedPreferences.getInstance();
-    await preferences.setString(_powerModeKey, mode.storageValue);
+    await preferences.setString(_powerModeKey, AppPowerMode.normal.storageValue);
   }
 }

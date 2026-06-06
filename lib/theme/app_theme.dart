@@ -8,7 +8,9 @@ class AppColors {
   static const card = Color(0xFF1A2230);
   static const primary = Color(0xFF00D1FF);
   static const primaryLight = Color(0xFF5CE7FF);
-  static const emergencyRed = Color(0xFFFF4B4B);
+  static const emergencyRed = Color(0xFFFF1F1F);
+  static const darkEmergencyRed = Color(0xFFB00020);
+  static const softRedBackground = Color(0xFF3A1114);
   static const warningOrange = Color(0xFFFF9F43);
   static const safeGreen = Color(0xFF2ED573);
   static const textPrimary = Color(0xFFF4F8FB);

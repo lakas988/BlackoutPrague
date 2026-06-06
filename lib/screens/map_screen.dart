@@ -102,16 +102,6 @@ class _MapScreenState extends State<MapScreen> {
           ),
 
           const SizedBox(height: 12),
-          _LocationControlCard(
-            selectedArea: _selectedArea,
-            lastKnownLocation: _lastKnownLocation,
-            isUpdatingLocation: _isUpdatingLocation,
-            locationMessage: _locationMessage,
-            onAreaChanged: _selectArea,
-            onUpdateLocation: _updateLocationOnce,
-            onClearLocation: _clearLastKnownLocation,
-          ),
-          const SizedBox(height: 12),
           _MapFilters(selectedType: _selectedType, onSelected: (type) => setState(() => _selectedType = type)),
           const SizedBox(height: 12),
           _MapModeSelector(mode: _mapMode, onChanged: _setMapMode),
@@ -122,26 +112,41 @@ class _MapScreenState extends State<MapScreen> {
             height: 430,
             child: ClipRRect(
               borderRadius: BorderRadius.circular(8),
-              child: _mapMode == MapMode.onlineTiles
-                  ? _OnlineHelpMap(
-                      key: ValueKey('${center.latitude}-${center.longitude}-${_selectedType?.name ?? 'all'}-${_selectedHelpPointId ?? 'none'}'),
-                      controller: _mapController,
-                      center: center,
-                      selectedPoint: selectedPoint,
-                      navigationPoint: navigationPoint,
-                      lastKnownLocation: _lastKnownLocation,
-                      selectedArea: _selectedArea,
-                      points: visiblePoints,
-                      typeIcon: _typeIcon,
-                      typeColor: _typeColor,
-                      onOpenPoint: _selectAndShowHelpPoint,
-                    )
-                  : _offlineMapWidget(
-                      center: center,
-                      selectedPoint: selectedPoint,
-                      navigationPoint: navigationPoint,
-                      visiblePoints: visiblePoints,
+              child: Stack(
+                children: [
+                  Positioned.fill(
+                    child: _mapMode == MapMode.onlineTiles
+                        ? _OnlineHelpMap(
+                            key: ValueKey('${center.latitude}-${center.longitude}-${_selectedType?.name ?? 'all'}-${_selectedHelpPointId ?? 'none'}'),
+                            controller: _mapController,
+                            center: center,
+                            selectedPoint: selectedPoint,
+                            navigationPoint: navigationPoint,
+                            lastKnownLocation: _lastKnownLocation,
+                            selectedArea: _selectedArea,
+                            points: visiblePoints,
+                            typeIcon: _typeIcon,
+                            typeColor: _typeColor,
+                            onOpenPoint: _selectAndShowHelpPoint,
+                          )
+                        : _offlineMapWidget(
+                            center: center,
+                            selectedPoint: selectedPoint,
+                            navigationPoint: navigationPoint,
+                            visiblePoints: visiblePoints,
+                          ),
+                  ),
+                  Positioned(
+                    right: 10,
+                    top: 10,
+                    child: _MapOverlayButton(
+                      icon: Icons.fullscreen_outlined,
+                      label: 'Celá obrazovka',
+                      onPressed: _openFullscreenMap,
                     ),
+                  ),
+                ],
+              ),
             ),
           ),
           const SizedBox(height: 8),
@@ -161,6 +166,16 @@ class _MapScreenState extends State<MapScreen> {
               onNavigate: () => _startNavigation(selectedPoint),
             ),
           ],
+          const SizedBox(height: 12),
+          _LocationControlCard(
+            selectedArea: _selectedArea,
+            lastKnownLocation: _lastKnownLocation,
+            isUpdatingLocation: _isUpdatingLocation,
+            locationMessage: _locationMessage,
+            onAreaChanged: _selectArea,
+            onUpdateLocation: _updateLocationOnce,
+            onClearLocation: _clearLastKnownLocation,
+          ),
           const SizedBox(height: 18),
           Text('Body pomoci', style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: 8),
@@ -317,6 +332,33 @@ class _MapScreenState extends State<MapScreen> {
     }
   }
 
+  void _openFullscreenMap() {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => _FullscreenMapPage(
+          initialMode: _mapMode,
+          offlineMap: _offlineMapBundle,
+          offlineMapError: _offlineMapError,
+          center: _mapCenter,
+          selectedType: _selectedType,
+          selectedPoint: _selectedHelpPoint,
+          navigationPoint: _navigationHelpPoint,
+          lastKnownLocation: _lastKnownLocation,
+          selectedArea: _selectedArea,
+          points: _visibleHelpPoints,
+          typeIcon: _typeIcon,
+          typeColor: _typeColor,
+          onModeChanged: _setMapMode,
+          onPointSelected: (point) {
+            if (mounted) {
+              setState(() => _selectedHelpPointId = point.id);
+            }
+          },
+        ),
+      ),
+    );
+  }
+
   Future<void> _selectArea(PragueArea area) async {
     setState(() => _selectedArea = area);
     await _selectedAreaService.saveSelectedAreaId(area.id);
@@ -440,15 +482,18 @@ class _MapScreenState extends State<MapScreen> {
   void _startNavigation(HelpPoint point) {
     if (_lastKnownLocation == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Pro navigaci aktualizujte polohu nebo vyberte oblast ručně.')),
+        const SnackBar(content: Text('Pro spojení bodů aktualizujte polohu nebo vyberte oblast ručně.')),
       );
       return;
     }
     setState(() {
       _selectedHelpPointId = point.id;
       _navigationHelpPointId = point.id;
-});
+    });
     _moveMapToPoint(point);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Zobrazeno propojení mezi vaší polohou a cílem. Nejde o plnohodnotnou navigaci po cestách.')),
+    );
   }
 
   void _showHelpPointSheet(HelpPoint point) {
@@ -482,9 +527,9 @@ class _MapScreenState extends State<MapScreen> {
               Text('Otevírací poznámka: ${point.openingNote}'),
               const SizedBox(height: 12),
               if (hasGps)
-                const Text('Zjednodušená offline navigace ukazuje přímý směr. Produkční verze by používala offline routing.')
+                const Text('Zobrazeno propojení mezi vaší polohou a cílem. Nejde o plnohodnotnou navigaci po cestách.')
               else
-                const Text('Pro navigaci aktualizujte polohu nebo vyberte oblast ručně.'),
+                const Text('Pro spojení bodů aktualizujte polohu nebo vyberte oblast ručně.'),
               const SizedBox(height: 18),
               FilledButton.icon(
                 onPressed: () {
@@ -492,7 +537,7 @@ class _MapScreenState extends State<MapScreen> {
                   _startNavigation(point);
                 },
                 icon: const Icon(Icons.navigation_outlined),
-                label: const Text('Navigovat'),
+                label: const Text('Spojit body na mapě'),
               ),
               const SizedBox(height: 10),
               OutlinedButton.icon(
@@ -534,7 +579,7 @@ class _MapScreenState extends State<MapScreen> {
 
   Color _typeColor(HelpPointType type) {
     return switch (type) {
-      HelpPointType.hospital => const Color(0xFFFF4B4B),
+      HelpPointType.hospital => const Color(0xFFFF1F1F),
       HelpPointType.pharmacy => const Color(0xFF2ED573),
       HelpPointType.police => const Color(0xFF00D1FF),
       HelpPointType.fireStation => const Color(0xFFFF9F43),
@@ -556,6 +601,323 @@ class _Coordinate {
 
   final double latitude;
   final double longitude;
+}
+
+class _FullscreenMapPage extends StatefulWidget {
+  const _FullscreenMapPage({
+    required this.initialMode,
+    required this.offlineMap,
+    required this.offlineMapError,
+    required this.center,
+    required this.selectedType,
+    required this.selectedPoint,
+    required this.navigationPoint,
+    required this.lastKnownLocation,
+    required this.selectedArea,
+    required this.points,
+    required this.typeIcon,
+    required this.typeColor,
+    required this.onModeChanged,
+    required this.onPointSelected,
+  });
+
+  final MapMode initialMode;
+  final OfflineMapBundle? offlineMap;
+  final String? offlineMapError;
+  final LatLng center;
+  final HelpPointType? selectedType;
+  final HelpPoint? selectedPoint;
+  final HelpPoint? navigationPoint;
+  final AppLocation? lastKnownLocation;
+  final PragueArea selectedArea;
+  final List<HelpPoint> points;
+  final IconData Function(HelpPointType type) typeIcon;
+  final Color Function(HelpPointType type) typeColor;
+  final ValueChanged<MapMode> onModeChanged;
+  final ValueChanged<HelpPoint> onPointSelected;
+
+  @override
+  State<_FullscreenMapPage> createState() => _FullscreenMapPageState();
+}
+
+class _FullscreenMapPageState extends State<_FullscreenMapPage> {
+  final _controller = MapController();
+
+  late MapMode _mode;
+  HelpPointType? _selectedType;
+  HelpPoint? _selectedPoint;
+
+  @override
+  void initState() {
+    super.initState();
+    _mode = widget.initialMode;
+    _selectedType = widget.selectedType;
+    _selectedPoint = widget.selectedPoint;
+  }
+
+  List<HelpPoint> get _visiblePoints {
+    if (_selectedType == null) {
+      return widget.points;
+    }
+    return widget.points.where((point) => point.type == _selectedType).toList(growable: false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final center = _selectedPoint == null
+        ? widget.center
+        : LatLng(_selectedPoint!.latitude, _selectedPoint!.longitude);
+
+    return Scaffold(
+      body: Stack(
+        children: [
+          Positioned.fill(child: _buildMap(center)),
+          Positioned(
+            top: MediaQuery.paddingOf(context).top + 10,
+            left: 10,
+            right: 10,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    _MapOverlayButton(
+                      icon: Icons.arrow_back,
+                      label: 'Zpět',
+                      onPressed: () => Navigator.of(context).pop(),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: _FullscreenModeSelector(
+                        mode: _mode,
+                        onChanged: (mode) {
+                          setState(() => _mode = mode);
+                          widget.onModeChanged(mode);
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                _FullscreenFilters(
+                  selectedType: _selectedType,
+                  onSelected: (type) => setState(() => _selectedType = type),
+                ),
+              ],
+            ),
+          ),
+          if (_selectedPoint != null)
+            Positioned(
+              left: 12,
+              right: 12,
+              bottom: 12 + MediaQuery.paddingOf(context).bottom,
+              child: _FullscreenSelectedPointCard(
+                point: _selectedPoint!,
+                onOpen: () => _showPointDetail(_selectedPoint!),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMap(LatLng center) {
+    if (_mode == MapMode.onlineTiles) {
+      return _OnlineHelpMap(
+        controller: _controller,
+        center: center,
+        selectedPoint: _selectedPoint,
+        navigationPoint: widget.navigationPoint,
+        lastKnownLocation: widget.lastKnownLocation,
+        selectedArea: widget.selectedArea,
+        points: _visiblePoints,
+        typeIcon: widget.typeIcon,
+        typeColor: widget.typeColor,
+        onOpenPoint: _selectPoint,
+      );
+    }
+
+    final offlineMap = widget.offlineMap;
+    if (offlineMap == null) {
+      return _OfflineMapError(error: widget.offlineMapError ?? 'Offline mapa zatím není připravena.');
+    }
+
+    return _OfflineVectorHelpMap(
+      controller: _controller,
+      center: center,
+      offlineMap: offlineMap,
+      selectedPoint: _selectedPoint,
+      navigationPoint: widget.navigationPoint,
+      lastKnownLocation: widget.lastKnownLocation,
+      selectedArea: widget.selectedArea,
+      points: _visiblePoints,
+      typeIcon: widget.typeIcon,
+      typeColor: widget.typeColor,
+      onOpenPoint: _selectPoint,
+    );
+  }
+
+  void _selectPoint(HelpPoint point) {
+    setState(() => _selectedPoint = point);
+    widget.onPointSelected(point);
+    try {
+      _controller.move(LatLng(point.latitude, point.longitude), 15.5);
+    } catch (_) {
+      // MapController nemusí být připravený během přechodu do fullscreen režimu.
+    }
+    _showPointDetail(point);
+  }
+
+  void _showPointDetail(HelpPoint point) {
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(point.name, style: Theme.of(context).textTheme.titleLarge),
+                const SizedBox(height: 8),
+                Text('${point.type.czechLabel} · ${point.areaName}'),
+                const SizedBox(height: 8),
+                Text(point.address),
+                const SizedBox(height: 8),
+                Text('Ověření: ${point.verifiedStatus.czechLabel}'),
+                const SizedBox(height: 8),
+                Text('Služby: ${point.availableServices.join(', ')}'),
+                const SizedBox(height: 8),
+                Text('Otevírací poznámka: ${point.openingNote}'),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _MapOverlayButton extends StatelessWidget {
+  const _MapOverlayButton({
+    required this.icon,
+    required this.label,
+    required this.onPressed,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: const Color(0xDD121821),
+      borderRadius: BorderRadius.circular(8),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(8),
+        onTap: onPressed,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 20, color: const Color(0xFF5CE7FF)),
+              const SizedBox(width: 6),
+              Text(label, style: const TextStyle(fontWeight: FontWeight.w800)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _FullscreenModeSelector extends StatelessWidget {
+  const _FullscreenModeSelector({required this.mode, required this.onChanged});
+
+  final MapMode mode;
+  final ValueChanged<MapMode> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: Alignment.centerRight,
+      child: SegmentedButton<MapMode>(
+        segments: const [
+          ButtonSegment(value: MapMode.onlineTiles, label: Text('Online')),
+          ButtonSegment(value: MapMode.offlineMap, label: Text('Offline')),
+        ],
+        selected: {mode},
+        onSelectionChanged: (selection) => onChanged(selection.first),
+      ),
+    );
+  }
+}
+
+class _FullscreenFilters extends StatelessWidget {
+  const _FullscreenFilters({required this.selectedType, required this.onSelected});
+
+  final HelpPointType? selectedType;
+  final ValueChanged<HelpPointType?> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: const Color(0xDD121821),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(6),
+          child: Row(
+            children: [
+              FilterChip(
+                selected: selectedType == null,
+                label: const Text('Vše'),
+                onSelected: (_) => onSelected(null),
+              ),
+              const SizedBox(width: 6),
+              for (final filter in _MapFilters.filters) ...[
+                FilterChip(
+                  selected: selectedType == filter.type,
+                  avatar: Icon(filter.icon, size: 18),
+                  label: Text(filter.label),
+                  onSelected: (_) => onSelected(filter.type),
+                ),
+                const SizedBox(width: 6),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _FullscreenSelectedPointCard extends StatelessWidget {
+  const _FullscreenSelectedPointCard({required this.point, required this.onOpen});
+
+  final HelpPoint point;
+  final VoidCallback onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      color: const Color(0xEE1A2230),
+      child: ListTile(
+        onTap: onOpen,
+        leading: const Icon(Icons.place, color: Color(0xFF00D1FF)),
+        title: Text(point.name),
+        subtitle: Text('${point.type.czechLabel} · ${point.areaName}'),
+        trailing: const Icon(Icons.expand_less),
+      ),
+    );
+  }
 }
 
 class _OnlineHelpMap extends StatelessWidget {
@@ -969,7 +1331,7 @@ class _MapFilters extends StatelessWidget {
   final HelpPointType? selectedType;
   final ValueChanged<HelpPointType?> onSelected;
 
-  static const _filters = <_MapFilter>[
+  static const filters = <_MapFilter>[
     _MapFilter('Nemocnice', HelpPointType.hospital, Icons.local_hospital_outlined),
     _MapFilter('Policie', HelpPointType.police, Icons.local_police_outlined),
     _MapFilter('Hasiči', HelpPointType.fireStation, Icons.fire_truck_outlined),
@@ -987,7 +1349,7 @@ class _MapFilters extends StatelessWidget {
       runSpacing: 8,
       children: [
         FilterChip(selected: selectedType == null, label: const Text('Vše'), onSelected: (_) => onSelected(null)),
-        for (final filter in _filters)
+        for (final filter in filters)
           FilterChip(
             selected: selectedType == filter.type,
             avatar: Icon(filter.icon, size: 18),
@@ -1083,14 +1445,14 @@ class _SelectedPointCard extends StatelessWidget {
             const SizedBox(height: 8),
             Text(
               hasGps
-                  ? 'Zjednodušená offline navigace ukazuje přímý směr. Produkční verze by používala offline routing.'
-                  : 'Pro navigaci aktualizujte polohu nebo vyberte oblast ručně.',
+                  ? 'Zobrazeno propojení mezi vaší polohou a cílem. Nejde o plnohodnotnou navigaci po cestách.'
+                  : 'Pro spojení bodů aktualizujte polohu nebo vyberte oblast ručně.',
             ),
             const SizedBox(height: 12),
             OutlinedButton.icon(
               onPressed: onNavigate,
               icon: Icon(isNavigating ? Icons.near_me : Icons.navigation_outlined),
-              label: const Text('Navigovat'),
+              label: const Text('Spojit body na mapě'),
             ),
           ],
         ),

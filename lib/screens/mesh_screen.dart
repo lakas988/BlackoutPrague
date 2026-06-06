@@ -4,10 +4,12 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../models/emergency_message.dart';
+import '../models/user_profile.dart';
 import '../services/demo_mode_service.dart';
 import '../services/mesh_foreground_service.dart';
 import '../services/mesh_settings_service.dart';
 import '../services/message_service.dart';
+import '../services/profile_storage_service.dart';
 import '../services/real_ble_mesh_service.dart';
 import 'settings_screen.dart';
 
@@ -30,6 +32,7 @@ class _MeshScreenState extends State<MeshScreen> {
   final _demoModeService = DemoModeService.instance;
   final _meshSettingsService = MeshSettingsService.instance;
   final _meshForegroundService = MeshForegroundService.instance;
+  final _profileStorageService = ProfileStorageService();
   final _random = math.Random();
 
   Timer? _incomingTimer;
@@ -129,6 +132,8 @@ class _MeshScreenState extends State<MeshScreen> {
             maxLength: _customMessageMaxLength,
             onSend: _sendCustomTextMessage,
           ),
+          const SizedBox(height: 12),
+          _ProfileInfoMessageCard(onSend: _confirmAndSendProfileInfo),
           if (_isDemoModeEnabled) ...[
             const SizedBox(height: 18),
             const _SectionTitle(title: 'Simulace mesh'),
@@ -326,6 +331,70 @@ class _MeshScreenState extends State<MeshScreen> {
 
     _showSnackBar('Zpráva je uložená. Pro odeslání zapněte BLE mesh.');
   }
+
+  Future<void> _confirmAndSendProfileInfo() async {
+    final profile = await _profileStorageService.loadProfile();
+    if (!mounted) {
+      return;
+    }
+
+    if (profile == null) {
+      _showSnackBar('Nejdříve vyplňte profil.');
+      return;
+    }
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Poslat základní info z profilu'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Následující informace budou odeslány do okolní mesh sítě:'),
+              const SizedBox(height: 12),
+              Text('Role: ${profile.role.czechLabel}'),
+              Text('Oblast: ${profile.district.trim().isEmpty ? 'Praha' : profile.district}'),
+              Text('Potřebuji léky: ${_yesNo(profile.needsMedication)}'),
+              Text('Mám děti: ${_yesNo(profile.hasChildren)}'),
+              Text('Senior v domácnosti: ${_yesNo(profile.hasSeniorAtHome)}'),
+              Text('Mazlíček: ${_yesNo(profile.hasPet)}'),
+              const SizedBox(height: 12),
+              const Text('Telefonní číslo, kontakt ani zdravotní poznámky se neposílají.'),
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Zrušit')),
+            FilledButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('Odeslat')),
+          ],
+        );
+      },
+    );
+
+    if (confirmed != true) {
+      return;
+    }
+
+    final message = await _messageService.createOutgoingProfileInfoMessage(profile);
+    if (!mounted) {
+      return;
+    }
+
+    if (_realBleMeshService.isEnabled) {
+      final wasBroadcast = await _realBleMeshService.broadcastMessage(message);
+      _showSnackBar(
+        wasBroadcast
+            ? 'Profilová informace se vysílá přes BLE mesh.'
+            : (_realBleMeshService.lastError ?? 'Profilovou informaci se nepodařilo odeslat přes BLE mesh.'),
+      );
+      return;
+    }
+
+    _showSnackBar('Profilová informace je uložená. Pro odeslání zapněte BLE mesh.');
+  }
+
+  String _yesNo(bool value) => value ? 'ano' : 'ne';
 
   void _scheduleIncomingSample() {
     _incomingTimer?.cancel();
@@ -575,7 +644,7 @@ class _CustomTextMessageCard extends StatelessWidget {
                 Text(
                   '$length/$maxLength',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: isTooLong ? const Color(0xFFFF4B4B) : const Color(0xFFC7D0DC),
+                    color: isTooLong ? const Color(0xFFFF1F1F) : const Color(0xFFC7D0DC),
                     fontWeight: FontWeight.w800,
                   ),
                 ),
@@ -585,7 +654,7 @@ class _CustomTextMessageCard extends StatelessWidget {
               const SizedBox(height: 8),
               Text(
                 'Zpráva je příliš dlouhá pro BLE mesh. Zkraťte ji na 40 znaků.',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(color: const Color(0xFFFF4B4B)),
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(color: const Color(0xFFFF1F1F)),
               ),
             ],
             const SizedBox(height: 12),
@@ -595,6 +664,41 @@ class _CustomTextMessageCard extends StatelessWidget {
                 onPressed: onSend,
                 icon: const Icon(Icons.send_outlined),
                 label: const Text('Odeslat'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ProfileInfoMessageCard extends StatelessWidget {
+  const _ProfileInfoMessageCard({required this.onSend});
+
+  final VoidCallback onSend;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Poslat základní info z profilu', style: Theme.of(context).textTheme.titleLarge),
+            const SizedBox(height: 8),
+            Text(
+              'Odešle jen roli, oblast a krátké příznaky pro krizovou pomoc. Telefon, kontakt ani zdravotní poznámky se neposílají.',
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: onSend,
+                icon: const Icon(Icons.badge_outlined),
+                label: const Text('Poslat základní info z profilu'),
               ),
             ),
           ],
@@ -836,13 +940,13 @@ class _MessageCard extends StatelessWidget {
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(_typeIcon(message.type), color: important ? const Color(0xFFFF4B4B) : const Color(0xFF00D1FF), size: 30),
+                  Icon(_typeIcon(message), color: important ? const Color(0xFFFF1F1F) : const Color(0xFF00D1FF), size: 30),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(message.isCustomTextMessage ? 'Textová zpráva' : message.type.czechLabel, style: Theme.of(context).textTheme.titleLarge),
+                        Text(_messageTitle(message), style: Theme.of(context).textTheme.titleLarge),
                         const SizedBox(height: 6),
                         Text(message.text, style: Theme.of(context).textTheme.bodyLarge),
                       ],
@@ -857,12 +961,19 @@ class _MessageCard extends StatelessWidget {
                 children: [
                   _Badge(text: 'Priorita: ${message.priority.czechLabel}', color: _priorityColor(message.priority)),
                   _Badge(text: message.isOutgoing ? 'Odeslaná' : 'Přijatá'),
-                  if (message.isDemo) const _Badge(text: 'Demo', color: Color(0xFFFF4B4B)),
-                  if (message.isExpired) const _Badge(text: 'Vypršelo', color: Color(0xFFFF4B4B)),
-                  if (message.isOutdated) const _Badge(text: 'Neaktuální', color: Color(0xFFFF4B4B)),
+                  if (message.isDemo) const _Badge(text: 'Demo', color: Color(0xFFFF1F1F)),
+                  if (message.isExpired) const _Badge(text: 'Vypršelo', color: Color(0xFFFF1F1F)),
+                  if (message.isOutdated) const _Badge(text: 'Neaktuální', color: Color(0xFFFF1F1F)),
                 ],
               ),
               const SizedBox(height: 12),
+              if (message.isProfileInfoMessage) ...[
+                _InfoLine(icon: Icons.badge_outlined, text: 'Role: ${_profileRoleLabel(message.profileRoleCode)}'),
+                _InfoLine(icon: Icons.medication_outlined, text: 'Léky: ${_flagYesNo(message.profileFlags, 'M')}'),
+                _InfoLine(icon: Icons.child_care_outlined, text: 'Děti: ${_flagYesNo(message.profileFlags, 'C')}'),
+                _InfoLine(icon: Icons.elderly_outlined, text: 'Senior: ${_flagYesNo(message.profileFlags, 'S')}'),
+                _InfoLine(icon: Icons.pets_outlined, text: 'Mazlíček: ${_flagYesNo(message.profileFlags, 'P')}'),
+              ],
               _InfoLine(icon: Icons.tag_outlined, text: 'ID: ${message.shortId}'),
               _InfoLine(icon: Icons.location_city_outlined, text: 'Oblast: ${message.approximateArea}'),
               _InfoLine(icon: Icons.schedule_outlined, text: 'Čas: ${_createdAtText(message.createdAt)}'),
@@ -915,8 +1026,21 @@ class _MessageCard extends StatelessWidget {
     );
   }
 
-  IconData _typeIcon(EmergencyMessageType type) {
-    return switch (type) {
+  String _messageTitle(EmergencyMessage message) {
+    if (message.isProfileInfoMessage) {
+      return 'Profilová informace';
+    }
+    if (message.isCustomTextMessage) {
+      return 'Textová zpráva';
+    }
+    return message.type.czechLabel;
+  }
+
+  IconData _typeIcon(EmergencyMessage message) {
+    if (message.isProfileInfoMessage) {
+      return Icons.badge_outlined;
+    }
+    return switch (message.type) {
       EmergencyMessageType.ok => Icons.check_circle_outline,
       EmergencyMessageType.sos => Icons.warning_amber_outlined,
       EmergencyMessageType.medical => Icons.medical_services_outlined,
@@ -927,12 +1051,27 @@ class _MessageCard extends StatelessWidget {
     };
   }
 
+  String _profileRoleLabel(String? roleCode) {
+    return switch ((roleCode ?? 'CIT').toUpperCase()) {
+      'VOL' => 'Dobrovolník',
+      'MED' => 'Zdravotník',
+      'FIR' => 'Hasič',
+      'POL' => 'Policista',
+      'TEC' => 'Technik',
+      _ => 'Obyvatel',
+    };
+  }
+
+  String _flagYesNo(String? flags, String flag) {
+    return (flags ?? '').toUpperCase().contains(flag) ? 'ano' : 'ne';
+  }
+
   Color _priorityColor(EmergencyMessagePriority priority) {
     return switch (priority) {
       EmergencyMessagePriority.low => const Color(0xFF2ED573),
       EmergencyMessagePriority.medium => const Color(0xFF00D1FF),
       EmergencyMessagePriority.high => const Color(0xFFFF9F43),
-      EmergencyMessagePriority.critical => const Color(0xFFFF4B4B),
+      EmergencyMessagePriority.critical => const Color(0xFFFF1F1F),
     };
   }
 

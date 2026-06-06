@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../data/prague_areas.dart';
 import '../models/emergency_message.dart';
+import '../models/user_profile.dart';
 import 'device_id_service.dart';
 import 'selected_area_service.dart';
 
@@ -76,6 +77,33 @@ class MessageService extends ChangeNotifier {
       isOutgoing: true,
       isOutdated: false,
       isCustomTextMessage: isCustomTextMessage,
+    );
+    await _addMessage(message);
+    return message;
+  }
+
+  Future<EmergencyMessage> createOutgoingProfileInfoMessage(UserProfile profile) async {
+    await loadMessages();
+    final areaName = profile.district.trim().isEmpty ? await _currentAreaName() : profile.district.trim();
+    final deviceId = await _deviceIdService.getDeviceId();
+    final message = EmergencyMessage(
+      id: _createMeshMessageId(),
+      originDeviceId: deviceId,
+      type: EmergencyMessageType.info,
+      text: _profileInfoText(profile, areaName),
+      createdAt: DateTime.now(),
+      senderAlias: 'Já',
+      approximateArea: areaName,
+      priority: EmergencyMessagePriority.medium,
+      ttlMinutes: 60,
+      hopCount: 0,
+      maxHops: _defaultMaxHops,
+      verifiedCount: 0,
+      isOutgoing: true,
+      isOutdated: false,
+      isProfileInfoMessage: true,
+      profileRoleCode: _profileRoleCode(profile.role),
+      profileFlags: _profileFlags(profile),
     );
     await _addMessage(message);
     return message;
@@ -312,5 +340,44 @@ class MessageService extends ChangeNotifier {
     final nowPart = DateTime.now().microsecondsSinceEpoch & 0xFFFFFF;
     final randomPart = _random.nextInt(0xFFFFFF);
     return (nowPart ^ randomPart).toRadixString(16).toUpperCase().padLeft(6, '0').substring(0, 6);
+  }
+
+  String _profileInfoText(UserProfile profile, String areaName) {
+    final flags = <String>[
+      if (profile.needsMedication) 'léky',
+      if (profile.hasChildren) 'děti',
+      if (profile.hasSeniorAtHome) 'senior',
+      if (profile.hasPet) 'mazlíček',
+    ];
+    final needs = flags.isEmpty ? 'bez zvláštních příznaků' : flags.join(', ');
+    return 'Profilová informace: ${profile.role.czechLabel}, $areaName, $needs.';
+  }
+
+  String _profileRoleCode(UserRole role) {
+    return switch (role) {
+      UserRole.citizen => 'CIT',
+      UserRole.volunteer => 'VOL',
+      UserRole.medic => 'MED',
+      UserRole.firefighter => 'FIR',
+      UserRole.police => 'POL',
+      UserRole.technician => 'TEC',
+    };
+  }
+
+  String _profileFlags(UserProfile profile) {
+    final flags = StringBuffer();
+    if (profile.needsMedication) {
+      flags.write('M');
+    }
+    if (profile.hasChildren) {
+      flags.write('C');
+    }
+    if (profile.hasSeniorAtHome) {
+      flags.write('S');
+    }
+    if (profile.hasPet) {
+      flags.write('P');
+    }
+    return flags.isEmpty ? '-' : flags.toString();
   }
 }

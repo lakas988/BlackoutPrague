@@ -674,7 +674,7 @@ class _WarningBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DecoratedBox(
-      decoration: BoxDecoration(color: const Color(0xFFFF4B4B), borderRadius: BorderRadius.circular(8)),
+      decoration: BoxDecoration(color: const Color(0xFFFF1F1F), borderRadius: BorderRadius.circular(8)),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         child: Text(text, style: const TextStyle(fontWeight: FontWeight.w800, color: Colors.white)),

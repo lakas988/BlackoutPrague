@@ -18,9 +18,9 @@ extension AppPowerModeLabel on AppPowerMode {
   };
 
   String get description => switch (this) {
-    AppPowerMode.normal => 'Plný režim aplikace.',
-    AppPowerMode.batterySaver => 'Úsporný režim omezuje zbytečné obnovování a doporučuje používat polohu jen ručně.',
-    AppPowerMode.ultra => 'Ultra režim omezuje funkce, aby telefon vydržel déle.',
+    AppPowerMode.normal => '',
+    AppPowerMode.batterySaver => '',
+    AppPowerMode.ultra => '',
   };
 
   static AppPowerMode fromStorageValue(String? value) {
